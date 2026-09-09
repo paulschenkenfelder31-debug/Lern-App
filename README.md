@@ -1,1 +1,76 @@
-# Lern-App
+# Fahrklar – Lern-App für Android
+
+Eine deutsche, lokal speichernde Lern-App für den österreichischen Führerschein.
+
+## APK herunterladen
+
+[**Neueste APK öffnen**](https://github.com/paulschenkenfelder31-debug/Lern-App/releases/latest)
+
+Unter **Assets** auf **Fahrklar-Test.apk** tippen, herunterladen und auf dem Android-Handy öffnen. Android 8.0 oder neuer und eine aktuelle Android System WebView sind erforderlich. Falls Android danach fragt, die Installation für die verwendete Download-App erlauben.
+
+Jeder Push nach `main` führt Logiktests, Android-Build und Lint aus und stellt bei Erfolg eine APK in GitHub Releases bereit. Alternativ liegt sie unter **Actions → Android APK → erfolgreicher Lauf → Fahrklar-APK**.
+
+## Funktionen
+
+- Deutsche Oberfläche, helles/dunkles Design, Tagesziel und lokale Lernserie.
+- Lernrunden, Suche, Themenfilter, neue Fragen, zuletzt falsche Fragen und Merkliste.
+- Multiple Choice mit vollständiger Antwortauswertung und Bildunterstützung.
+- Übungssimulationen pro gewähltem Modul: 20 zufällige Hauptfragen, verknüpfte Zusatzfragen nur nach richtiger Hauptfrage, 30 Minuten pro Modul, 80 % der möglichen Punkte als Übungsziel. Keine amtlich zertifizierte Simulation; die genaue amtliche Themenverteilung und Sonderregeln von AM/Fahrlehrer sind nicht nachgebildet.
+- Alle Antworten und Simulationen mit Verlauf und Lösungssnapshots der damaligen Text-/Antwortversion. Historische Bilder werden über ihre Quell-ID referenziert und können sich beim Anbieter ändern.
+- Trefferquote, aktive Fragen pro Minute, Lernzeit, Mittelwert/Median/P90 der Antwortzeit, Erstversuchsquote, Katalogabdeckung, Beherrschung nach drei richtigen Antworten in Folge, Tagesverlauf, schwache Themen, Prüfungserfolgsquote, Zeitraum- und Modulfilter.
+- Keine Anmeldung, Werbung, Cloud-Synchronisation oder Analyse-Tracker. Android-Cloud-Backup ist deaktiviert. JSON-Sicherung und Wiederherstellung über den Android-Dateidialog.
+
+## Fragenquelle und Rechte
+
+Technisch geprüft am 09.09.2026: Die öffentliche F-Online-Website liefert ihre Gatsby-Seitendaten als JSON:
+
+`https://www.f-online.app/page-data/at/fragenkatalog/alle-fragen/page-data.json`
+
+Die geprüfte Antwort enthält 4.310 eindeutige Fragen, Antwortschlüssel, Bild-IDs, Klassen, Themen, Punkte und Haupt-/Zusatzfragen-Verknüpfungen. Dies ist eine öffentliche Website-Datenressource, **keine dokumentierte oder vertraglich zugesicherte API**. Die AGB schließen eine Garantie für Vollständigkeit und Aktualität aus. Der letzte erfolgreiche Abgleich wird in der App sichtbar angezeigt; daraus wird kein amtlicher Fragenstand abgeleitet.
+
+F-Online verlangt in seinen [AGB](https://www.f-online.app/at/agb/) eine ausdrückliche schriftliche Genehmigung für die Weiterverwendung. Vor der Aktivierung muss diese Genehmigung für die beabsichtigte Nutzung mit `info@f-online.at` geklärt werden. Die App startet ohne Fragen; der Direktdownload ist anfangs ausgeschaltet und wird erst nach Bestätigung dieses Hinweises aktiviert. **Es sind keine F-Online-Fragen oder Bilder im Repository, in Testdaten oder in der APK enthalten.** Eine Lizenz des App-Codes würde keine Rechte am Fragenmaterial einräumen.
+
+Der ebenfalls gefundene ältere [Node-Client](https://github.com/JohnDeved/f-Online-Nodejs-api) ist keine offizielle API-Freigabe; er benötigt eine Anmeldung und verweist auf die Kontaktaufnahme mit F-Online. Er wird nicht verwendet.
+
+### Katalogmodule
+
+| Quell-ID | Modul | Fragen beim geprüften Abruf |
+|---|---|---:|
+| 1 | Grundwissen | 1.052 |
+| 2 | A | 322 |
+| 3 | B | 374 |
+| 4 | C | 612 |
+| 5 | D | 498 |
+| 6 | E | 372 |
+| 7 | F | 386 |
+| 8 | AM | 297 |
+| 10 | Fahrlehrer | 397 |
+
+Es gibt derzeit keine Fragen mit Klasse-ID 9 (BE) in dieser Ressource. BE wird daher nicht als verfügbar vorgetäuscht. A1/A2 sowie C1/D1 werden nicht als eigenständige Kataloge ausgewiesen. Unbekannte zukünftige Klassen werden nicht stillschweigend einer bestehenden Klasse zugeordnet.
+
+### Aktualisierung und Offlinebetrieb
+
+Nach Aktivierung prüft die App beim Öffnen höchstens einmal pro 24 Stunden auf Änderungen; zusätzlich ist ein manueller Abgleich möglich. Keine Hintergrundabfrage bei geschlossener App. `If-None-Match` reduziert Übertragungen, wenn der Anbieter ETags liefert. Bei Ausfällen, ungültigen Datensätzen, fehlenden Zusatzfragen oder einem plötzlichen Rückgang um mehr als 20 % bleibt der vorherige Katalog unverändert. Dateien werden atomar ersetzt. Ein Text-/Antwort-/Bild-ID-Wechsel setzt die Beherrschung der betroffenen Frage zurück, ohne frühere Statistiken zu löschen.
+
+Bilder werden direkt vom Anbieter geladen, lokal gespeichert und können für die ausgewählten Module vorab heruntergeladen werden. Der Anbieter sieht bei Downloads technisch die IP-Adresse, erhält aber keine Antworten oder Lernstatistiken. Ohne notwendige Bilder ist die Antwortabgabe gesperrt. Der erste Bilddownload benötigt Internet und kann einige Minuten dauern.
+
+## Signierung und Updates
+
+Die erste bereitgestellte APK ist eine **Debug-Testversion**, keine produktiv signierte Veröffentlichung. Der temporäre Debug-Schlüssel kann sich je Build ändern. Android kann dann eine Neuinstallation verlangen; vorher in der App eine JSON-Sicherung exportieren und anschließend wiederherstellen. Kein privater Signierschlüssel wird öffentlich gespeichert.
+
+Für dauerhafte Installation mit Updates ohne Neuinstallation muss der Eigentümer einen privaten Release-Keystore sicher aufbewahren und als GitHub Actions Secret einrichten; der Release-Build ist entsprechend zu ergänzen. Diese erste Version legt keine Geheimnisse im Repository an und verspricht keine dauerhafte Signatur.
+
+## Entwicklung
+
+Android-Projekt mit Java und lokaler HTML/CSS/JavaScript-Oberfläche in einer eingeschränkten WebView. Die Oberfläche wird ausschließlich aus APK-Assets geladen. Externe Navigation wird blockiert, Bilder sind auf numerische JPEG-Pfade bei `img.f-online.at` beschränkt, Dateizugriff der WebView ist deaktiviert, und die JavaScript-Brücke ist nur der lokalen Oberfläche zugänglich.
+
+Voraussetzungen: JDK 17, Android SDK 35, Build Tools 35.0.0, Gradle 8.11.1 und Node.js 22 für Tests.
+
+```sh
+node --test tests/*.test.cjs
+gradle assembleDebug lintDebug
+```
+
+APK: `app/build/outputs/apk/debug/app-debug.apk`.
+
+Die Tests verwenden ausschließlich synthetische Inhalte. Sie prüfen Antwortauswertung, Katalogvalidierung, Fragenrevisionen, Prüfungsauswahl und Punktesumme, statistische Nenner, leere Zustände, Lernserien und Sicherungsvalidierung. Ein echter Gerätetest bleibt zusätzlich sinnvoll, insbesondere für Dateidialoge, Hintergrundverhalten und Bilddownloads.

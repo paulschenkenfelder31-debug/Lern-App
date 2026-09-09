@@ -1,0 +1,73 @@
+name: Android APK
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: android-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Test learning and scoring logic
+        run: node --test tests/*.test.cjs
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.11.1'
+      - name: Build and lint APK
+        env:
+          BUILD_NUMBER: ${{ github.run_number }}
+        run: gradle --no-daemon assembleDebug lintDebug
+      - name: Name the APK
+        run: cp app/build/outputs/apk/debug/app-debug.apk Fahrklar-Test.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Fahrklar-APK
+          path: Fahrklar-Test.apk
+          if-no-files-found: error
+          retention-days: 90
+  release:
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: Fahrklar-APK
+      - name: Publish downloadable test APK
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          COMMIT_SHA: ${{ github.sha }}
+          RUN_NUMBER: ${{ github.run_number }}
+        run: |
+          cat > release-notes.md <<'NOTES'
+          ## Fahrklar für Android
+
+          Lade **Fahrklar-Test.apk** unter **Assets** herunter und öffne sie auf deinem Android-Handy (Android 8 oder neuer).
+
+          Deutsche Lern-App mit lokalen Statistiken, Lernrunden und Übungssimulationen.
+
+          **Fragenquelle:** Die APK enthält keine fremden Fragen oder Bilder. Die direkte Verbindung zu F-Online lässt sich nach Klärung der dort verlangten schriftlichen Nutzungsgenehmigung in der App aktivieren.
+
+          **Testsignatur:** Dies ist eine Debug-Testversion. Bei einem späteren Build kann Android eine Neuinstallation verlangen, da noch kein dauerhafter privater Release-Schlüssel hinterlegt ist. Vorher unter Einstellungen eine Sicherung exportieren, anschließend wiederherstellen.
+
+          Die Simulationen sind Übungsprüfungen und keine amtliche Prüfungssoftware.
+          NOTES
+          gh release create "test-$RUN_NUMBER" Fahrklar-Test.apk --target "$COMMIT_SHA" --title "Fahrklar · Testversion $RUN_NUMBER" --notes-file release-notes.md --latest
