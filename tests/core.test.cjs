@@ -10,3 +10,34 @@ test('Speed excludes skipped questions and uses active time; incomplete exams ex
 test('Empty stats never claim readiness or produce NaN',()=>{const s=C.stats([],[],[],Date.now());assert.equal(s.accuracy,null);assert.equal(s.qpm,null);assert.equal(s.coverage,0);assert.equal(s.exams,0);assert.equal(s.mastered,0);});
 test('Streak tolerates today not yet studied and crosses month boundaries',()=>{const now=new Date(2026,8,1,12).getTime();const attempts=[new Date(2026,7,31,12),new Date(2026,7,30,12)].map(t=>({at:+t,id:1,version:'v',correct:true,ms:5000,topic:'T'}));assert.equal(C.stats(attempts,[],[],now).streak,2);});
 test('Backup rejects malformed or negative statistics and drops in-flight sessions',()=>{assert.throws(()=>C.validateBackup({}));assert.throws(()=>C.validateBackup({schema:1,settings:{modules:[1]},attempts:[{id:1,ms:-1}],sessions:[]}));const b=C.validateBackup({schema:1,settings:{modules:[1]},attempts:[],sessions:[],active:{bad:true}});assert.equal(b.active,null);});
+
+test('Review schedule respects wrong-answer delay and increasing correct intervals',()=>{
+  const now=1700000000000;
+  assert.equal(C.reviewStatus({seen:false},now).due,false);
+  const wrong={seen:true,streak:0,last:{correct:false,at:now}};
+  assert.equal(C.reviewStatus(wrong,now+599999).due,false);
+  assert.equal(C.reviewStatus(wrong,now+600000).due,true);
+  for(const [streak,days] of [[1,1],[2,3],[3,7],[4,14],[5,30],[10,30]]){
+    const p={seen:true,streak,last:{correct:true,at:now}};
+    assert.equal(C.reviewStatus(p,now).at,now+days*86400000);
+  }
+});
+test('Adaptive rounds prioritize due errors while retaining new questions without duplicates',()=>{
+  const qs=C.normalize(Array.from({length:30},(_,i)=>q(i+1))),now=1700000000000;
+  const attempts=qs.slice(0,20).map(q=>({id:q.id,version:q.version,correct:false,at:now-700000}));
+  const chosen=C.learningQueue(qs,attempts,10,now,()=>.5);
+  assert.equal(chosen.length,10);
+  assert.equal(chosen.filter(q=>q.id<=20).length,7);
+  assert.equal(new Set(chosen.map(q=>q.id)).size,10);
+  assert.ok(chosen.slice(0,7).every(q=>q.id<=20));
+  const changed={...qs[0],version:'changed'};
+  assert.equal(C.reviewStatus(C.progress(changed,attempts),now).due,false);
+  assert.deepEqual(C.learningQueue([],attempts),[]);
+});
+test('Topic search groups shared parents and counts exact question paths',()=>{
+  const groups=C.topicGroups([{topic:'F - Bremsanlagen › Auflaufbremse F'},{topic:'F - Bremsanlagen › Auflaufbremse F'},{topic:'F - Bremsanlagen › Druckluft F'},{topic:'B - Vorrang › Kreuzung'}],'brems');
+  assert.equal(groups.length,1);assert.equal(groups[0].items.length,2);
+  assert.equal(groups[0].items[0].label,'Auflaufbremse F');assert.equal(groups[0].items[0].count,2);
+  assert.equal(C.topicGroups([{topic:'F › Anhänger'}],'ANHÄNGER')[0].items[0].value,'F › Anhänger');
+  assert.deepEqual(C.topicGroups([{topic:'F › Anhänger'}],'xyz'),[]);
+});

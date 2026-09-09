@@ -64,5 +64,36 @@
     data.settings.dark=!!data.settings.dark;data.settings.auto=!!data.settings.auto;
     return {...data,active:null};
   }
-  const api={classes,dayKey,fingerprint,normalize,grade,shuffle,makeExam,progress,stats,validateBackup};root.Core=api;if(typeof module!=='undefined')module.exports=api;
+
+  // The schedule is derived from versioned attempts, so backups and catalog edits
+  // need no separate mutable scheduling state.
+  function reviewStatus(p,now=Date.now()){
+    if(!p.seen||!p.last)return {due:false,at:null};
+    const interval=p.last.correct?[1,3,7,14,30][Math.min(Math.max(p.streak-1,0),4)]*86400000:10*60000;
+    const at=p.last.at+interval;return {due:at<=now,at};
+  }
+  function learningQueue(qs,attempts,count=20,now=Date.now(),rng=Math.random){
+    const ps=new Map();
+    for(const a of attempts){if(a.skipped)continue;const key=a.id+':'+a.version,p=ps.get(key)||{seen:true,streak:0};p.streak=a.correct?p.streak+1:0;p.last=a;ps.set(key,p);}
+    const due=[],fresh=[],later=[];
+    for(const q of shuffle(qs,rng)){const p=ps.get(q.id+':'+q.version);if(!p){fresh.push(q);continue;}const r=reviewStatus(p,now);(r.due?due:later).push({q,p,at:r.at});}
+    due.sort((a,b)=>Number(a.p.last.correct)-Number(b.p.last.correct)||a.at-b.at);
+    later.sort((a,b)=>a.at-b.at);
+    const first=due.splice(0,Math.ceil(count*.7)).map(x=>x.q);
+    const newQuestions=fresh.splice(0,Math.max(0,count-first.length));
+    return [...first,...newQuestions,...due.map(x=>x.q),...fresh,...later.map(x=>x.q)].slice(0,count);
+  }
+  function topicGroups(qs,query=''){
+    const groups=new Map(),counts=new Map();
+    for(const q of qs)counts.set(q.topic,(counts.get(q.topic)||0)+1);
+    for(const [value,count] of counts){
+      if(query&&!value.toLocaleLowerCase('de').includes(query.toLocaleLowerCase('de')))continue;
+      const parts=value.split(' › '),name=parts.length>1?parts.shift():'Weitere Themen',label=parts.join(' › ')||'Ohne Themenangabe';
+      if(!groups.has(name))groups.set(name,[]);
+      groups.get(name).push({value,label,count});
+    }
+    return [...groups].sort((a,b)=>a[0].localeCompare(b[0],'de')).map(([name,items])=>({name,items:items.sort((a,b)=>a.label.localeCompare(b.label,'de'))}));
+  }
+
+  const api={classes,dayKey,fingerprint,normalize,grade,shuffle,makeExam,progress,stats,validateBackup,reviewStatus,learningQueue,topicGroups};root.Core=api;if(typeof module!=='undefined')module.exports=api;
 })(typeof globalThis!=='undefined'?globalThis:this);

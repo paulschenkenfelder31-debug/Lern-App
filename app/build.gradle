@@ -1,5 +1,19 @@
 plugins { id 'com.android.application' }
+def signingPath = System.getenv('FAHRKLAR_KEYSTORE')
+def signingPassword = System.getenv('FAHRKLAR_KEYSTORE_PASSWORD')
+def stableSigning = signingPath && signingPassword
 android {
+    buildFeatures { buildConfig true }
+    signingConfigs {
+        persistent {
+            if (stableSigning) {
+                storeFile file(signingPath)
+                storePassword signingPassword
+                keyAlias 'fahrklar'
+                keyPassword signingPassword
+            }
+        }
+    }
     namespace 'at.lernapp'
     compileSdk 35
     defaultConfig {
@@ -10,7 +24,14 @@ android {
         versionName '1.0.' + (System.getenv('BUILD_NUMBER') ?: '0')
     }
     compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
-    buildTypes { release { minifyEnabled false } }
+    buildTypes {
+        debug { buildConfigField 'boolean', 'STABLE_SIGNING', 'false' }
+        release {
+            minifyEnabled false
+            buildConfigField 'boolean', 'STABLE_SIGNING', stableSigning ? 'true' : 'false'
+            if (stableSigning) signingConfig signingConfigs.persistent
+        }
+    }
     testOptions { unitTests.includeAndroidResources = true }
 }
 dependencies {

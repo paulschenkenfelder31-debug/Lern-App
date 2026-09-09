@@ -164,7 +164,55 @@ public class MainActivity extends Activity {
         }
         for (int i=0; i<questions.length(); i++) { JSONObject q=questions.getJSONObject(i); int sub=q.optInt("qst_sub",0); if(sub>0 && !ids.contains(sub)) throw new IOException("Zusatzfrage fehlt"); }
     }
+
+    private static final String RELEASES = "https://github.com/paulschenkenfelder31-debug/Lern-App/releases/latest";
+    private volatile boolean checkingUpdate;
+    static JSONObject updateResult(JSONObject release, int installed) throws Exception {
+        String tag = release.getString("tag_name");
+        if (!tag.matches("(test|version)-[1-9][0-9]{0,8}") || release.optBoolean("draft") || release.optBoolean("prerelease"))
+            throw new IOException("Unbekannte Version");
+        int version = Integer.parseInt(tag.substring(tag.indexOf('-') + 1));
+        JSONArray assets = release.getJSONArray("assets");
+        boolean apk = false;
+        String expected = tag.startsWith("version-") ? "Fahrklar.apk" : "Fahrklar-Test.apk";
+        for (int i=0; i<assets.length(); i++) {
+            JSONObject asset = assets.getJSONObject(i);
+            String url = "https://github.com/paulschenkenfelder31-debug/Lern-App/releases/download/" + tag + "/" + expected;
+            if (expected.equals(asset.optString("name")) && url.equals(asset.optString("browser_download_url")) && asset.optLong("size") > 0) apk = true;
+        }
+        if (!apk) throw new IOException("Noch keine APK veröffentlicht");
+        boolean newer = version > installed;
+        return new JSONObject().put("available", newer).put("message", newer
+            ? "Version 1.0." + version + " ist verfügbar. Sichere deinen Lernstand vor dem Wechsel."
+            : "Du verwendest bereits die aktuelle oder eine neuere Version.");
+    }
+    private void checkUpdate() {
+        if (checkingUpdate) return;
+        checkingUpdate = true;
+        worker.execute(() -> {
+            HttpURLConnection c = null;
+            try {
+                c = connection("https://api.github.com/repos/paulschenkenfelder31-debug/Lern-App/releases/latest");
+                c.setRequestProperty("Accept", "application/vnd.github+json");
+                if(c.getResponseCode()!=200) throw new IOException("GitHub ist gerade nicht erreichbar");
+                JSONObject release;
+                try(InputStream in=c.getInputStream()) { release=new JSONObject(new String(bounded(in,1_000_000),StandardCharsets.UTF_8)); }
+                event("app-update", updateResult(release, BuildConfig.VERSION_CODE).toString());
+            } catch(Exception e) { event("app-update-error", "Updates konnten nicht geprüft werden. Prüfe deine Internetverbindung und versuche es erneut."); }
+            finally { if(c!=null)c.disconnect();checkingUpdate=false; }
+        });
+    }
     public class Bridge {
+        @JavascriptInterface public String appInfo() {
+            try { return new JSONObject().put("version",BuildConfig.VERSION_NAME).put("stable",BuildConfig.STABLE_SIGNING).toString(); }
+            catch(JSONException e) { return "{}"; }
+        }
+        @JavascriptInterface public void checkUpdate() { runOnUiThread(() -> MainActivity.this.checkUpdate()); }
+        @JavascriptInterface public void openUpdate() {
+            runOnUiThread(() -> { try { startActivity(new Intent(Intent.ACTION_VIEW,Uri.parse(RELEASES))); }
+                catch(android.content.ActivityNotFoundException e) { event("app-update-error","Zum Öffnen des Updates wird ein Browser benötigt."); } });
+        }
+
         @JavascriptInterface public String loadState() { return read("state.json", "{}"); }
         @JavascriptInterface public boolean saveState(String state) {
             try { if (state.length()>30_000_000) return false; new JSONObject(state); write("state.json",state); return true; } catch(Exception e) { return false; }

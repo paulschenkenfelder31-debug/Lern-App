@@ -17,3 +17,32 @@ test('Generated backup passes validation, malformed nested history is rejected',
 test('Empty catalog routes lead to download instead of disabled learning controls',async()=>{const t=await setup();t.run('catalog=[]');for(const route of ['home','learn','exam']){t.run(`route='${route}';render()`);const html=t.elements['#app'].innerHTML;assert.match(html,/Fragen herunterladen/);assert.doesNotMatch(html,/data-action="(?:quick|start-exam|start-filtered)"/);assert.match(html,/<svg/);}});
 test('Download progress disables retries; errors allow retry without losing saved questions',async()=>{const t=await setup();const count=t.run('catalog.length');await t.run("window.nativeEvent('sync','Fragenkatalog wird geladen …')");assert.match(t.elements['#app'].innerHTML,/data-action="sync" disabled/);await t.run("window.nativeEvent('error','Verbindung unterbrochen')");assert.match(t.elements['#app'].innerHTML,/Erneut versuchen/);assert.match(t.elements['#app'].innerHTML,/gespeicherten Fragen bleiben nutzbar/);assert.equal(t.run('catalog.length'),count);assert.equal(t.run('transferBusy'),false);});
 test('Successful first download unlocks learning and clears the loading state',async()=>{const t=await setup();t.run("catalog=[];downloadState={phase:'loading',message:''};transferBusy=true;render()");await t.run("window.nativeEvent('updated','Fragenkatalog gespeichert')");assert.match(t.elements['#app'].innerHTML,/Lernrunde starten/);assert.equal(t.run('transferBusy'),false);assert.equal(t.run('downloadState.phase'),'idle');});
+
+test('Learning and statistics use topic picker and button filters rather than native dropdowns',async()=>{
+  const t=await setup();
+  for(const r of ['learn','stats']){t.run(`route='${r}';render()`);assert.doesNotMatch(t.elements['#app'].innerHTML,/<select/);}
+  t.run("route='learn';render()");assert.match(t.elements['#app'].innerHTML,/data-action="topics"/);
+  t.run("route='stats';render()");assert.match(t.elements['#app'].innerHTML,/data-period="30"/);
+});
+test('Wrong training answers return after intervening questions once, and persist in backup state',async()=>{
+  const t=await setup();t.run('startTrain(catalog.slice(0,5))');const id=t.run('question().id');
+  t.advance(5000);t.run('selected=[2];answer()');
+  assert.equal(t.run('state.active.questions.length'),6);
+  assert.equal(t.run('state.active.questions[4].id'),id);
+  assert.equal(JSON.parse(t.storage.get('fahrklar')).active.questions.length,6);
+  t.run('next()');
+  for(let i=0;i<3;i++){t.advance(1000);t.run('selected=[0,1];answer();next()');}
+  assert.equal(t.run('question().id'),id);
+  t.run('selected=[2];answer();next();selected=[0,1];answer();next()');
+  assert.equal(t.run('state.active'),null);
+  assert.equal(t.run(`state.attempts.filter(a=>a.id===${id}).length`),2);
+  assert.equal(t.run('state.sessions[0].attempts.length'),6);
+});
+test('App update errors are separate from question downloads and never erase history',async()=>{
+  const t=await setup();t.run("route='settings';transferBusy=true;downloadState={phase:'loading',message:''};render()");
+  await t.run(`window.nativeEvent('app-update','{"available":true,"message":"Version 1.0.9 verfügbar"}')`);
+  assert.match(t.elements['#app'].innerHTML,/data-action="open-update"/);
+  await t.run("window.nativeEvent('app-update-error','Offline')");
+  assert.doesNotMatch(t.elements['#app'].innerHTML,/data-action="open-update"/);
+  assert.equal(t.run('transferBusy'),true);assert.equal(t.run('downloadState.phase'),'loading');
+});

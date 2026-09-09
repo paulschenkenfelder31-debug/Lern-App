@@ -54,6 +54,18 @@ public class StartupTest {
         }
     }
 
+
+    @Test public void updatesCompareNumericVersionsAndRequireRepositoryApk() throws Exception {
+        org.json.JSONObject release = new org.json.JSONObject("{\"tag_name\":\"test-12\",\"assets\":[{\"name\":\"Fahrklar-Test.apk\",\"size\":100,\"browser_download_url\":\"https://github.com/paulschenkenfelder31-debug/Lern-App/releases/download/test-12/Fahrklar-Test.apk\"}]}");
+        assertTrue(MainActivity.updateResult(release,9).getBoolean("available"));
+        assertFalse(MainActivity.updateResult(release,12).getBoolean("available"));
+        assertFalse(MainActivity.updateResult(release,13).getBoolean("available"));
+        release.getJSONArray("assets").getJSONObject(0).put("browser_download_url","https://example.invalid/app.apk");
+        assertThrows(Exception.class, () -> MainActivity.updateResult(release,9));
+        release.put("tag_name","malformed");
+        assertThrows(Exception.class, () -> MainActivity.updateResult(release,9));
+    }
+
     private static final class Request implements WebResourceRequest {
         private final Uri uri;
         Request(String url) { uri = Uri.parse(url); }

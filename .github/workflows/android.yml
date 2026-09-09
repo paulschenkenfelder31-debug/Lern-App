@@ -13,6 +13,8 @@ jobs:
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 25
+    outputs:
+      stable: ${{ steps.package.outputs.stable }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -32,12 +34,42 @@ jobs:
         env:
           BUILD_NUMBER: ${{ github.run_number }}
         run: gradle --no-daemon testDebugUnitTest assembleDebug lintDebug
-      - name: Name the APK
-        run: cp app/build/outputs/apk/debug/app-debug.apk Fahrklar-Test.apk
+      - name: Package APK with persistent key when configured
+        id: package
+        env:
+          KEYSTORE_BASE64: ${{ github.event_name != 'pull_request' && secrets.FAHRKLAR_KEYSTORE_BASE64 || '' }}
+          FAHRKLAR_KEYSTORE_PASSWORD: ${{ github.event_name != 'pull_request' && secrets.FAHRKLAR_KEYSTORE_PASSWORD || '' }}
+          BUILD_NUMBER: ${{ github.run_number }}
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          if [[ -n "$KEYSTORE_BASE64" && -n "$FAHRKLAR_KEYSTORE_PASSWORD" ]]; then
+            umask 077
+            export FAHRKLAR_KEYSTORE="$RUNNER_TEMP/fahrklar-release.p12"
+            trap 'rm -f "$FAHRKLAR_KEYSTORE"' EXIT
+            printf '%s' "$KEYSTORE_BASE64" | base64 --decode > "$FAHRKLAR_KEYSTORE"
+            gradle --no-daemon testReleaseUnitTest assembleRelease lintRelease
+            cp app/build/outputs/apk/release/app-release.apk Fahrklar.apk
+            echo 'stable=true' >> "$GITHUB_OUTPUT"
+          elif [[ -n "$KEYSTORE_BASE64" || -n "$FAHRKLAR_KEYSTORE_PASSWORD" ]]; then
+            echo 'Signierung unvollständig: Beide FAHRKLAR-Secrets werden benötigt.' >&2
+            exit 1
+          else
+            if [[ "$GITHUB_EVENT_NAME" != pull_request ]]; then
+              latest_tag="$(gh release view --json tagName --jq .tagName)"
+              if [[ "$latest_tag" == version-* ]]; then
+                echo 'Dauerhafter Schlüssel fehlt. Eine Testsignatur darf die veröffentlichte Release-Version nicht ersetzen.' >&2
+                exit 1
+              fi
+            fi
+            cp app/build/outputs/apk/debug/app-debug.apk Fahrklar-Test.apk
+            echo 'stable=false' >> "$GITHUB_OUTPUT"
+          fi
       - uses: actions/upload-artifact@v4
         with:
           name: Fahrklar-APK
-          path: Fahrklar-Test.apk
+          path: Fahrklar*.apk
           if-no-files-found: error
           retention-days: 90
   release:
@@ -50,24 +82,40 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           name: Fahrklar-APK
-      - name: Publish downloadable test APK
+      - name: Publish downloadable APK
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
           COMMIT_SHA: ${{ github.sha }}
           RUN_NUMBER: ${{ github.run_number }}
+          STABLE: ${{ needs.build.outputs.stable }}
         run: |
           cat > release-notes.md <<'NOTES'
           ## Fahrklar für Android
 
-          Lade **Fahrklar-Test.apk** unter **Assets** herunter und öffne sie auf deinem Android-Handy (Android 8 oder neuer).
+          Lade die **APK** unter **Assets** herunter und öffne sie auf deinem Android-Handy (Android 8 oder neuer).
 
           Deutsche Lern-App mit lokalen Statistiken, Lernrunden und Übungssimulationen.
 
           **Fragenquelle:** Die APK enthält keine fremden Fragen oder Bilder. Die direkte Verbindung zu F-Online lässt sich nach Klärung der dort verlangten schriftlichen Nutzungsgenehmigung in der App aktivieren.
 
-          **Testsignatur:** Dies ist eine Debug-Testversion. Bei einem späteren Build kann Android eine Neuinstallation verlangen, da noch kein dauerhafter privater Release-Schlüssel hinterlegt ist. Vorher unter Einstellungen eine Sicherung exportieren, anschließend wiederherstellen.
+          Neu: durchsuchbare Themengruppen, direkte Statistikfilter, gezielte Fehlerwiederholungen und eine manuelle App-Update-Prüfung.
 
           Die Simulationen sind Übungsprüfungen und keine amtliche Prüfungssoftware.
           NOTES
-          gh release create "test-$RUN_NUMBER" Fahrklar-Test.apk --target "$COMMIT_SHA" --title "Fahrklar · Testversion $RUN_NUMBER" --notes-file release-notes.md --latest
+          if [[ "$STABLE" == true ]]; then
+            tag="version-$RUN_NUMBER"
+            title="Fahrklar · Version $RUN_NUMBER"
+            cat >> release-notes.md <<'NOTES'
+
+          **Dauerhaft signiert:** Künftige Versionen mit demselben Schlüssel lassen sich als Update installieren. Beim einmaligen Wechsel von einer Testversion zuerst den Lernstand exportieren; bei erforderlicher Neuinstallation anschließend wiederherstellen.
+          NOTES
+          else
+            tag="test-$RUN_NUMBER"
+            title="Fahrklar · Testversion $RUN_NUMBER"
+            cat >> release-notes.md <<'NOTES'
+
+          **Testsignatur:** Dauerhafte Signierung ist noch nicht eingerichtet. Vor einem Versionswechsel den Lernstand exportieren; Android kann eine Neuinstallation verlangen. Einrichtung: siehe docs/updates.md im Repository.
+          NOTES
+          fi
+          gh release create "$tag" Fahrklar*.apk --target "$COMMIT_SHA" --title "$title" --notes-file release-notes.md --latest
