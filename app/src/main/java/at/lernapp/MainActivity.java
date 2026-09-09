@@ -22,12 +22,17 @@ public class MainActivity extends Activity {
     private static final String SOURCE = "https://www.f-online.app/page-data/at/fragenkatalog/alle-fragen/page-data.json";
     private final ExecutorService worker = Executors.newSingleThreadExecutor();
     private WebView web;
+    private GeminiClient gemini;
+    private final ExecutorService aiWorker = Executors.newSingleThreadExecutor();
+    private final java.util.concurrent.atomic.AtomicBoolean aiBusy = new java.util.concurrent.atomic.AtomicBoolean();
+
     private volatile boolean syncing;
     private String exportText;
     private static final int EXPORT = 10, IMPORT = 11;
 
     @Override public void onCreate(Bundle state) {
         super.onCreate(state);
+        gemini = new GeminiClient(this);
         web = new WebView(this);
         web.setBackgroundColor(0xfff5f6fa);
         web.setOnApplyWindowInsetsListener((v, insets) -> {
@@ -202,7 +207,54 @@ public class MainActivity extends Activity {
             finally { if(c!=null)c.disconnect();checkingUpdate=false; }
         });
     }
+
+    private void geminiKeyDialog() {
+        android.widget.EditText input=new android.widget.EditText(this);
+        input.setHint("Gemini-API-Key");
+        input.setSingleLine(true);
+        input.setInputType(android.text.InputType.TYPE_CLASS_TEXT|android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD);
+        input.setImportantForAutofill(android.view.View.IMPORTANT_FOR_AUTOFILL_NO);
+        android.app.AlertDialog dialog=new android.app.AlertDialog.Builder(this)
+            .setTitle("Gemini einrichten")
+            .setMessage("Bei „Einfach erklären“ werden die Frage, Antworten, Lösung und Bilder an Google Gemini gesendet. Es gilt dein Gemini-Tarif; Anfragen können Kosten verursachen. Dein Lernverlauf wird nicht übertragen. Der Key wird auf diesem Gerät verschlüsselt gespeichert und nicht in Sicherungen exportiert.")
+            .setView(input).setNegativeButton("Abbrechen",null).setPositiveButton("Speichern",null).create();
+        dialog.setOnShowListener(ignored -> {
+            dialog.getWindow().addFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE);
+            dialog.getButton(android.app.AlertDialog.BUTTON_POSITIVE).setOnClickListener(v -> {
+                try { gemini.saveKey(input.getText().toString());input.setText("");dialog.dismiss();event("ai-key","saved"); }
+                catch(Exception e) { input.setError("Key konnte nicht gespeichert werden. Prüfe die Eingabe."); }
+            });
+        });
+        dialog.setOnDismissListener(ignored -> input.setText(""));
+        dialog.show();
+    }
+    private void aiResult(String id, String value, boolean success) {
+        try {event(success?"ai-result":"ai-error",new JSONObject().put("id",id).put("text",value).toString());}
+        catch(JSONException ignored) {}
+    }
     public class Bridge {
+        @JavascriptInterface public boolean hasGeminiKey() { return gemini.hasKey(); }
+        @JavascriptInterface public void configureGemini() { runOnUiThread(() -> geminiKeyDialog()); }
+        @JavascriptInterface public void deleteGeminiKey() {
+            runOnUiThread(() -> new android.app.AlertDialog.Builder(MainActivity.this).setTitle("Gemini-Key entfernen?")
+                .setMessage("Die KI-Funktion wird deaktiviert. Lernstand und Verlauf bleiben gespeichert.")
+                .setNegativeButton("Abbrechen",null).setPositiveButton("Entfernen",(d,w) -> {
+                    try {gemini.deleteKey();event("ai-key","deleted");}
+                    catch(Exception e){event("ai-key-error","Key konnte nicht vollständig entfernt werden. Bitte erneut versuchen.");}
+                }).show());
+        }
+        @JavascriptInterface public void explainQuestion(String requestId, String questionJson) {
+            if(requestId==null||!requestId.matches("[A-Za-z0-9:-]{1,120}"))return;
+            if(questionJson==null||questionJson.length()>50000){aiResult(requestId,"Die Frage ist zu groß.",false);return;}
+            if(!aiBusy.compareAndSet(false,true)){aiResult(requestId,"Eine Erklärung wird bereits geladen.",false);return;}
+            aiWorker.execute(() -> {
+                try { aiResult(requestId,gemini.explain(new JSONObject(questionJson),id -> imageBytes("https://img.f-online.at/"+id+".jpg")),true); }
+                catch(GeminiClient.UserError e){aiResult(requestId,e.getMessage(),false);}
+                catch(Exception e){aiResult(requestId,"Erklärung konnte nicht geladen werden. Prüfe Internet und API-Key; auch benötigte Bilder müssen verfügbar sein.",false);}
+                finally {aiBusy.set(false);}
+            });
+        }
+
         @JavascriptInterface public String appInfo() {
             try { return new JSONObject().put("version",BuildConfig.VERSION_NAME).put("stable",BuildConfig.STABLE_SIGNING).toString(); }
             catch(JSONException e) { return "{}"; }
@@ -251,5 +303,5 @@ public class MainActivity extends Activity {
     @Override public void onBackPressed() { web.evaluateJavascript("window.goBack ? window.goBack() : false", value -> { if ("false".equals(value)) finish(); }); }
     @Override protected void onPause() { web.evaluateJavascript("window.pauseApp && window.pauseApp()",null); super.onPause(); }
     @Override protected void onResume() { super.onResume(); if(web!=null) web.evaluateJavascript("window.resumeApp && window.resumeApp()",null); }
-    @Override protected void onDestroy() {worker.shutdownNow(); web.removeJavascriptInterface("Native"); web.destroy(); super.onDestroy();}
+    @Override protected void onDestroy() {worker.shutdownNow(); aiWorker.shutdownNow(); web.removeJavascriptInterface("Native"); web.destroy(); super.onDestroy();}
 }

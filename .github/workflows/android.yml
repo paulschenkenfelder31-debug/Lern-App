@@ -99,7 +99,7 @@ jobs:
 
           **Fragenquelle:** Die APK enthält keine fremden Fragen oder Bilder. Die direkte Verbindung zu F-Online lässt sich nach Klärung der dort verlangten schriftlichen Nutzungsgenehmigung in der App aktivieren.
 
-          Neu: durchsuchbare Themengruppen, direkte Statistikfilter, gezielte Fehlerwiederholungen und eine manuelle App-Update-Prüfung.
+          Neu: Gemini-Lernhilfe mit eigenem API-Key unter Einstellungen. Nach einer Antwort erklärt „Einfach erklären“ die Lösung samt Merksatz. Fragen und Bilder werden nur auf Knopfdruck an Google gesendet; dein Gemini-Tarif gilt. Während einer Prüfungssimulation bleibt die KI gesperrt.
 
           Die Simulationen sind Übungsprüfungen und keine amtliche Prüfungssoftware.
           NOTES

@@ -79,3 +79,16 @@ Die Tests verwenden ausschließlich synthetische Inhalte. Sie prüfen Antwortaus
 Die Oberfläche verwendet lokal eingebettete SVG-Piktogramme aus [Lucide](https://lucide.dev), Stand `75955ec47b764f253ded2baea7a1c2b3ec64efec`. Die vollständigen ISC- und Feather-MIT-Lizenztexte sind in `icons.js` enthalten und unter Einstellungen → Open-Source-Lizenzen lesbar. Die Icons benötigen keine Internetverbindung.
 
 Ohne gespeicherten Katalog führen Übersicht, Lernen und Prüfung zur Download-Einführung. Ein laufender Download ist sichtbar und verhindert doppelte Anfragen. Fehler zeigen eine Wiederholen-Schaltfläche; ein fehlgeschlagener Abgleich entfernt den bisherigen Katalog nicht. Texte und Antworten sind nach dem Download offline verfügbar; die Bilder der gewählten Module können separat in den Einstellungen geladen werden.
+# Gemini-Lernhilfe
+
+Unter **Einstellungen → Deine KI-Lernhilfe → Gemini einrichten** lässt sich ein eigener Gemini-API-Key direkt auf dem Android-Gerät hinterlegen. Nach einer Antwort oder in einer abgeschlossenen Einheit erscheint **Einfach erklären**. Gemini erklärt die Kataloglösung in einfachem Deutsch und ergänzt einen Merksatz. Während einer aktiven Prüfungssimulation ist die Funktion gesperrt.
+
+Eine Anfrage übermittelt ausschließlich die aktuelle Frage, Antwortoptionen, den Katalog-Antwortschlüssel und zugehörige Bilder an Google. Sie erfolgt nur nach Antippen; das eigene Gemini-Kontingent bzw. der eigene Tarif gilt. Fehlende Bilder brechen den Abruf ab, statt Gemini ohne wichtige Bildinformationen antworten zu lassen. Generierte Erklärungen sind gekennzeichnete Lernhilfen, können falsch sein und ändern weder Lösungen noch Statistiken.
+
+Der Key wird in einem nativen Passwortdialog eingegeben und mit AES-GCM verschlüsselt; der Verschlüsselungsschlüssel liegt im Android Keystore. Der Web-Oberfläche stehen nur der Hinterlegt-Status und Aktionen zur Verfügung, keine Funktion zum Auslesen. Weder Quellcode/APK noch JSON-Sicherungen enthalten einen Nutzer-Key. Nach einer Neuinstallation muss er erneut eingetragen werden. Dies ist eine Integration mit eigenem Schlüssel pro Nutzer; ein gemeinsamer Betreiber-Key gehört in einen separaten Backend-Dienst und nicht in die APK.
+
+Modell: `gemini-2.5-flash`, REST `generateContent`, Authentifizierung über `x-goog-api-key`. Erklärungen werden für bis zu 100 Fragenversionen nur im Arbeitsspeicher zwischengespeichert, nicht exportiert. Keine automatischen kostenpflichtigen Wiederholungsversuche. Kontingent-, Zugriffs- und Netzwerkfehler erhalten verständliche Meldungen; rohe API-Antworten werden nicht angezeigt oder geloggt.
+
+Die Tests prüfen Request-Felder, Bildzuordnung, Antwortschlüssel, unvollständige/abgelehnte Antworten, Prüfungssperre, Zwischenspeicherung und HTML-Escaping mit synthetischen Daten. Eine echte Gemini-Anfrage mit dem persönlichen Key und die hardwaregestützte Schlüsselspeicherung müssen auf dem Gerät geprüft werden.
+
+Referenzen: [Gemini generateContent](https://ai.google.dev/api/generate-content), [Gemini 2.5 Flash](https://ai.google.dev/gemini-api/docs/models/gemini-2.5-flash), [Android Keystore](https://developer.android.com/privacy-and-security/keystore).

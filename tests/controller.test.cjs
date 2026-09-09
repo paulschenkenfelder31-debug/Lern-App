@@ -5,8 +5,8 @@ const vm=require('node:vm');
 const Icons=require('../app/src/main/assets/icons.js');
 const C=require('../app/src/main/assets/core.js');
 function fixture(){const qs=[];for(let n=1;n<=25;n++){for(const sub of [false,true])qs.push({qst_id:n+(sub?100:0),txt_text:'Synthetische Frage '+n,qst_main:sub?0:1,qst_sub:sub?null:n+100,qst_value:sub?2:3,classes:[3],path:['Test'],answers:[{txt_text:'Richtig A',ans_correct:1},{txt_text:'Richtig B',ans_correct:1},{txt_text:'Falsch',ans_correct:0}]});}return qs;}
-async function setup(){const elements={};for(const id of ['#app','#nav','#toast','#timer'])elements[id]={innerHTML:'',textContent:'',classList:{add(){},remove(){}},hidden:false};const storage=new Map();let clock=100;
-const context=vm.createContext({Core:C,Icons,console,Date,Math,Map,Set,JSON,Number,String,Array,Promise,Error,document:{querySelector:s=>elements[s]||null,querySelectorAll:()=>[],addEventListener(){},body:{classList:{toggle(){}}},hidden:false},window:{scrollTo(){}},performance:{now:()=>clock},localStorage:{getItem:k=>storage.get(k),setItem:(k,v)=>storage.set(k,v)},fetch:async()=>({ok:true,json:async()=>({questions:fixture(),meta:{hash:'test',checkedAt:Date.now()}})}),setInterval(){},setTimeout(){},clearTimeout(){}});
+async function setup(nativeBridge=null){const elements={};for(const id of ['#app','#nav','#toast','#timer'])elements[id]={innerHTML:'',textContent:'',classList:{add(){},remove(){}},hidden:false};const storage=new Map();let clock=100;
+const context=vm.createContext({...(nativeBridge?{Native:nativeBridge}:{}),Core:C,Icons,console,Date,Math,Map,Set,JSON,Number,String,Array,Promise,Error,document:{querySelector:s=>elements[s]||null,querySelectorAll:()=>[],addEventListener(){},body:{classList:{toggle(){}}},hidden:false},window:{scrollTo(){}},performance:{now:()=>clock},localStorage:{getItem:k=>storage.get(k),setItem:(k,v)=>storage.set(k,v)},fetch:async()=>({ok:true,json:async()=>({questions:fixture(),meta:{hash:'test',checkedAt:Date.now()}})}),setInterval(){},setTimeout(){},clearTimeout(){}});
 vm.runInContext(fs.readFileSync('app/src/main/assets/app.js','utf8'),context);await new Promise(resolve=>setImmediate(resolve));return {run:src=>vm.runInContext(src,context),advance:ms=>clock+=ms,elements,storage};}
 test('Every primary route renders with synthetic catalog and empty local history',async()=>{const t=await setup();for(const route of ['home','learn','exam','stats','history','settings']){t.run(`route='${route}';render()`);assert.ok(t.elements['#app'].innerHTML.length>100,route);assert.ok(!t.elements['#app'].innerHTML.includes('NaN'),route);}});
 test('Training saves exactly one answer, feedback does not add time, review persists',async()=>{const t=await setup();t.run('startTrain([catalog[0]])');t.advance(10000);t.run('selected=[0,1];answer()');assert.equal(t.run('state.attempts.length'),1);assert.equal(t.run('feedback'),true);t.advance(60000);t.run('answer();next()');assert.equal(t.run('state.attempts.length'),1);assert.equal(t.run('state.attempts[0].ms'),10000);assert.equal(t.run('state.sessions[0].status'),'finished');assert.equal(t.run('state.active'),null);assert.equal(t.run('route'),'review');assert.ok(t.storage.get('fahrklar').includes('"schema":1'));});
@@ -45,4 +45,24 @@ test('App update errors are separate from question downloads and never erase his
   await t.run("window.nativeEvent('app-update-error','Offline')");
   assert.doesNotMatch(t.elements['#app'].innerHTML,/data-action="open-update"/);
   assert.equal(t.run('transferBusy'),true);assert.equal(t.run('downloadState.phase'),'loading');
+});
+function aiBridge(calls){return {loadState:()=> '{}',saveState:()=>true,hasGeminiKey:()=>true,appInfo:()=> '{"version":"test","stable":false}',explainQuestion:(id,json)=>calls.push({id,json}),configureGemini(){}};}
+test('AI is unavailable before answering and throughout an exam; request sends only the question',async()=>{
+  const calls=[],t=await setup(aiBridge(calls));t.run('startTrain([catalog[0]])');
+  t.run('requestAi(aiQuestionKey(question()))');assert.equal(calls.length,0);
+  t.run('selected=[0,1];answer();requestAi(aiQuestionKey(question()))');assert.equal(calls.length,1);
+  assert.deepEqual(Object.keys(JSON.parse(calls[0].json)).sort(),['answers','image','text']);
+  t.run('requestAi(aiQuestionKey(question()))');assert.equal(calls.length,1);
+  t.run("finish('finished');state.settings.modules=[3];startExam();requestAi(aiQuestionKey(question()))");
+  assert.equal(calls.length,1);assert.doesNotMatch(t.elements['#app'].innerHTML,/data-ai-panel/);
+});
+test('AI results are escaped, correlated by request, cached and excluded from backups',async()=>{
+  const calls=[],t=await setup(aiBridge(calls));t.run('startTrain([catalog[0]]);selected=[0,1];answer();requestAi(aiQuestionKey(question()))');
+  await t.run(`window.nativeEvent('ai-result',${JSON.stringify(JSON.stringify({id:'wrong-request',text:'wrong'}))})`);
+  assert.equal(t.run('aiCache.size'),0);
+  const result=JSON.stringify({id:calls[0].id,text:'<script>unsafe()</script>'});
+  await t.run(`window.nativeEvent('ai-result',${JSON.stringify(result)})`);
+  assert.match(t.run('aiPanel(question())'),/&lt;script&gt;/);
+  assert.doesNotMatch(t.run('JSON.stringify(state)'),/unsafe/);
+  t.run('requestAi(aiQuestionKey(question()))');assert.equal(calls.length,1);
 });
