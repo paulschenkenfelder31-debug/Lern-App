@@ -194,7 +194,7 @@ public class MainActivity extends Activity {
             if(request==IMPORT) {String text; try(InputStream in=getContentResolver().openInputStream(uri)) {text=new String(bounded(in,30_000_000),StandardCharsets.UTF_8);} event("import",text);}
         } catch(Exception e) {event("error","Datei konnte nicht verarbeitet werden.");}});
     }
-    @Override public void onBackPressed() { web.evaluateJavascript("window.goBack && window.goBack()",null); }
+    @Override public void onBackPressed() { web.evaluateJavascript("window.goBack ? window.goBack() : false", value -> { if ("false".equals(value)) finish(); }); }
     @Override protected void onPause() { web.evaluateJavascript("window.pauseApp && window.pauseApp()",null); super.onPause(); }
     @Override protected void onResume() { super.onResume(); if(web!=null) web.evaluateJavascript("window.resumeApp && window.resumeApp()",null); }
     @Override protected void onDestroy() {worker.shutdownNow(); web.removeJavascriptInterface("Native"); web.destroy(); super.onDestroy();}
