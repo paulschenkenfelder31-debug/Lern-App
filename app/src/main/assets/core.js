@@ -1,6 +1,6 @@
 (function(root){
   'use strict';
-  const classes={1:'Grundwissen',2:'A',3:'B',4:'C',5:'D',6:'E',7:'F',8:'AM',9:'BE',10:'Fahrlehrer'};
+  const classes={1:'Grundwissen',2:'A',3:'B',4:'C',5:'D',6:'E',7:'F',8:'AM',10:'Fahrlehrer'};
   const dayKey=t=>{const d=new Date(t);return [d.getFullYear(),String(d.getMonth()+1).padStart(2,'0'),String(d.getDate()).padStart(2,'0')].join('-');};
   function fingerprint(value){let h=2166136261;for(const c of JSON.stringify(value)){h^=c.charCodeAt(0);h=Math.imul(h,16777619);}return (h>>>0).toString(16);}
   function normalize(raw){
