@@ -57,11 +57,11 @@ public class MainActivity extends Activity {
                         if ("/catalog.json".equals(path)) return json(read("catalog.json", "{\"questions\":[],\"meta\":{}}"));
                         if (path != null && path.matches("/(index.html|app.js|core.js|style.css)")) {
                             String mime = path.endsWith(".css") ? "text/css" : path.endsWith(".js") ? "text/javascript" : "text/html";
-                            return new WebResourceResponse(mime,"UTF-8",getAssets().open(path.substring(1)));
+                            return new WebResourceResponse(mime,"UTF-8",200,"OK",Collections.emptyMap(),getAssets().open(path.substring(1)));
                         }
                     }
                     if ("https".equals(uri.getScheme()) && "img.f-online.at".equals(uri.getHost()) && uri.getPath().matches("/[0-9]+\\.jpg")) {
-                        return new WebResourceResponse("image/jpeg", null, new ByteArrayInputStream(imageBytes(uri.toString())));
+                        return new WebResourceResponse("image/jpeg", null, 200, "OK", Collections.emptyMap(), new ByteArrayInputStream(imageBytes(uri.toString())));
                     }
                 } catch (Exception ignored) { }
                 return notFoundResponse();
@@ -76,7 +76,7 @@ public class MainActivity extends Activity {
         return new WebResourceResponse("text/plain", "UTF-8", 404, "Not Found",
                 Collections.emptyMap(), new ByteArrayInputStream(new byte[0]));
     }
-    private WebResourceResponse json(String s) { return new WebResourceResponse("application/json", "UTF-8", new ByteArrayInputStream(s.getBytes(StandardCharsets.UTF_8))); }
+    private WebResourceResponse json(String s) { return new WebResourceResponse("application/json", "UTF-8", 200, "OK", Collections.emptyMap(), new ByteArrayInputStream(s.getBytes(StandardCharsets.UTF_8))); }
     private synchronized String read(String name, String fallback) {
         try (InputStream in = new AtomicFile(new File(getFilesDir(), name)).openRead()) { return new String(bounded(in, 30_000_000), StandardCharsets.UTF_8); }
         catch (Exception e) { return fallback; }
