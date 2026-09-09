@@ -64,11 +64,17 @@ public class MainActivity extends Activity {
                         return new WebResourceResponse("image/jpeg", null, new ByteArrayInputStream(imageBytes(uri.toString())));
                     }
                 } catch (Exception ignored) { }
-                return new WebResourceResponse("text/plain","UTF-8",404,"Nicht verfügbar",Collections.emptyMap(), new ByteArrayInputStream(new byte[0]));
+                return notFoundResponse();
             }
         });
         web.setWebChromeClient(new WebChromeClient());
         web.loadUrl(ORIGIN + "/index.html");
+    }
+    // Android rejects non-ASCII HTTP reason phrases. Keep localized text in the
+    // UI/body, never in this protocol field (including missing favicon requests).
+    static WebResourceResponse notFoundResponse() {
+        return new WebResourceResponse("text/plain", "UTF-8", 404, "Not Found",
+                Collections.emptyMap(), new ByteArrayInputStream(new byte[0]));
     }
     private WebResourceResponse json(String s) { return new WebResourceResponse("application/json", "UTF-8", new ByteArrayInputStream(s.getBytes(StandardCharsets.UTF_8))); }
     private synchronized String read(String name, String fallback) {

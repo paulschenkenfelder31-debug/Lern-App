@@ -31,7 +31,7 @@ jobs:
       - name: Build and lint APK
         env:
           BUILD_NUMBER: ${{ github.run_number }}
-        run: gradle --no-daemon assembleDebug lintDebug
+        run: gradle --no-daemon testDebugUnitTest assembleDebug lintDebug
       - name: Name the APK
         run: cp app/build/outputs/apk/debug/app-debug.apk Fahrklar-Test.apk
       - uses: actions/upload-artifact@v4
