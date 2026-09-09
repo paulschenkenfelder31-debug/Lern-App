@@ -50,10 +50,18 @@
   function validateBackup(data){
     if(!data||data.schema!==1||!Array.isArray(data.attempts)||!Array.isArray(data.sessions)||!data.settings||!Array.isArray(data.settings.modules)||!data.settings.modules.length||!data.settings.modules.every(n=>Number.isInteger(n)&&n>0&&n<1000))throw Error('Ungültige Sicherung');
     if(data.attempts.length>200000||data.sessions.length>20000)throw Error('Sicherung ist zu groß');
-    for(const a of data.attempts)if(!Number.isInteger(a.id)||typeof a.version!=='string'||typeof a.correct!=='boolean'||!Number.isFinite(a.ms)||a.ms<0||!Number.isFinite(a.at)||typeof a.topic!=='string'||!Array.isArray(a.classes)||!a.classes.every(Number.isInteger))throw Error('Ungültige Antwortdaten');
-    for(const s of data.sessions){if(!['train','exam'].includes(s.mode)||!['finished','aborted'].includes(s.status)||!Number.isFinite(s.started)||!Number.isFinite(s.ended)||!Array.isArray(s.attempts)||!Array.isArray(s.modules))throw Error('Ungültiger Verlauf');
-      for(const m of s.modules)if(typeof m==='object'&&(!Number.isFinite(m.earned)||!Number.isFinite(m.max)||m.max<0))throw Error('Ungültiges Ergebnis');
+    function validAttempt(a){
+      if(!a||!Number.isInteger(a.id)||typeof a.version!=='string'||typeof a.correct!=='boolean'||!Number.isFinite(a.ms)||a.ms<0||!Number.isFinite(a.at)||typeof a.topic!=='string'||typeof a.text!=='string'||!Array.isArray(a.classes)||!a.classes.every(Number.isInteger)||!Array.isArray(a.answers)||a.answers.length<2||a.answers.length>10||!Array.isArray(a.selected)||!a.selected.every(i=>Number.isInteger(i)&&i>=0&&i<a.answers.length))throw Error('Ungültige Antwortdaten');
+      for(const answer of a.answers)if(!answer||typeof answer.text!=='string'||typeof answer.correct!=='boolean'||(answer.image!=null&&!Number.isInteger(answer.image)))throw Error('Ungültige Lösungsdaten');
+      if(a.image!=null&&!Number.isInteger(a.image))throw Error('Ungültiges Bild');
     }
+    data.attempts.forEach(validAttempt);
+    for(const s of data.sessions){if(typeof s.id!=='string'||!['train','exam'].includes(s.mode)||!['finished','aborted'].includes(s.status)||!Number.isFinite(s.started)||!Number.isFinite(s.ended)||!Array.isArray(s.attempts)||!Array.isArray(s.modules))throw Error('Ungültiger Verlauf');
+      s.attempts.forEach(validAttempt);
+      for(const m of s.modules){if(s.mode==='train'){if(!Number.isInteger(m))throw Error('Ungültiges Modul');}else if(!m||!Number.isInteger(m.module)||!Number.isFinite(m.earned)||!Number.isFinite(m.max)||m.max<0||m.earned<0||m.earned>m.max)throw Error('Ungültiges Ergebnis');}
+    }
+    data.settings.goal=Math.max(1,Math.min(1000,Number(data.settings.goal)||30));
+    data.settings.dark=!!data.settings.dark;data.settings.auto=!!data.settings.auto;
     return {...data,active:null};
   }
   const api={classes,dayKey,fingerprint,normalize,grade,shuffle,makeExam,progress,stats,validateBackup};root.Core=api;if(typeof module!=='undefined')module.exports=api;
