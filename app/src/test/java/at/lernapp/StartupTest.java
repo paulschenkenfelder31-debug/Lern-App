@@ -37,7 +37,7 @@ public class StartupTest {
         try (ActivityController<MainActivity> controller = Robolectric.buildActivity(MainActivity.class).setup()) {
             MainActivity activity = controller.get();
             WebView web = (WebView) ((ViewGroup) activity.findViewById(android.R.id.content)).getChildAt(0);
-            for (String path : new String[]{"/index.html", "/app.js", "/core.js", "/style.css", "/catalog.json"}) {
+            for (String path : new String[]{"/index.html", "/app.js", "/core.js", "/icons.js", "/style.css", "/catalog.json"}) {
                 WebResourceResponse response = web.getWebViewClient().shouldInterceptRequest(web,
                         new Request("https://appassets.androidplatform.net" + path));
                 assertNotNull(path, response);

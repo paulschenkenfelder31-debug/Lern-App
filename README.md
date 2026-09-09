@@ -74,3 +74,8 @@ gradle assembleDebug lintDebug
 APK: `app/build/outputs/apk/debug/app-debug.apk`.
 
 Die Tests verwenden ausschließlich synthetische Inhalte. Sie prüfen Antwortauswertung, Katalogvalidierung, Fragenrevisionen, Prüfungsauswahl und Punktesumme, statistische Nenner, leere Zustände, Lernserien und Sicherungsvalidierung. Ein echter Gerätetest bleibt zusätzlich sinnvoll, insbesondere für Dateidialoge, Hintergrundverhalten und Bilddownloads.
+
+### Piktogramme und erster Start
+Die Oberfläche verwendet lokal eingebettete SVG-Piktogramme aus [Lucide](https://lucide.dev), Stand `75955ec47b764f253ded2baea7a1c2b3ec64efec`. Die vollständigen ISC- und Feather-MIT-Lizenztexte sind in `icons.js` enthalten und unter Einstellungen → Open-Source-Lizenzen lesbar. Die Icons benötigen keine Internetverbindung.
+
+Ohne gespeicherten Katalog führen Übersicht, Lernen und Prüfung zur Download-Einführung. Ein laufender Download ist sichtbar und verhindert doppelte Anfragen. Fehler zeigen eine Wiederholen-Schaltfläche; ein fehlgeschlagener Abgleich entfernt den bisherigen Katalog nicht. Texte und Antworten sind nach dem Download offline verfügbar; die Bilder der gewählten Module können separat in den Einstellungen geladen werden.

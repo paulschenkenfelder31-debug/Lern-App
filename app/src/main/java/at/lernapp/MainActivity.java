@@ -55,7 +55,7 @@ public class MainActivity extends Activity {
                     if ("https".equals(uri.getScheme()) && "appassets.androidplatform.net".equals(uri.getHost())) {
                         String path = uri.getPath();
                         if ("/catalog.json".equals(path)) return json(read("catalog.json", "{\"questions\":[],\"meta\":{}}"));
-                        if (path != null && path.matches("/(index.html|app.js|core.js|style.css)")) {
+                        if (path != null && path.matches("/(index.html|app.js|core.js|icons.js|style.css)")) {
                             String mime = path.endsWith(".css") ? "text/css" : path.endsWith(".js") ? "text/javascript" : "text/html";
                             return new WebResourceResponse(mime,"UTF-8",200,"OK",Collections.emptyMap(),getAssets().open(path.substring(1)));
                         }
