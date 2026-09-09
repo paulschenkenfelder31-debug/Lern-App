@@ -50,4 +50,14 @@ public class GeminiTest {
         assertTrue(GeminiClient.httpError(429).contains("Kontingent"));
         assertTrue(GeminiClient.httpError(403).contains("API-Key"));
     }
+    @Test public void selectsAnAvailableTextFlashModelAndRejectsMediaModels() throws Exception {
+        JSONArray models=new JSONArray()
+            .put(new JSONObject().put("name","models/gemini-3.5-flash-tts").put("supportedGenerationMethods",new JSONArray().put("generateContent")))
+            .put(new JSONObject().put("name","models/gemini-pro").put("supportedGenerationMethods",new JSONArray().put("generateContent")))
+            .put(new JSONObject().put("name","models/gemini-2.5-flash-lite").put("supportedGenerationMethods",new JSONArray().put("generateContent")))
+            .put(new JSONObject().put("name","models/gemini-3.7-flash").put("supportedGenerationMethods",new JSONArray().put("generateContent")));
+        assertEquals("models/gemini-3.7-flash",GeminiClient.selectModel(new JSONObject().put("models",models)));
+        models.remove(3);assertEquals("models/gemini-2.5-flash-lite",GeminiClient.selectModel(new JSONObject().put("models",models)));
+        models.remove(2);assertThrows(GeminiClient.UserError.class,()->GeminiClient.selectModel(new JSONObject().put("models",models)));
+    }
 }

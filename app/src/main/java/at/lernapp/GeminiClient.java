@@ -16,7 +16,7 @@ import java.io.*;
 /** User-owned Gemini key stays in the native layer, encrypted with Android Keystore. */
 final class GeminiClient {
     static final class UserError extends IOException { UserError(String message) { super(message); } }
-    static final String MODEL = "gemini-2.5-flash";
+    static final String DEFAULT_MODEL = "models/gemini-2.5-flash";
     private static final String ALIAS = "fahrklar.gemini.v1";
     private final SharedPreferences prefs;
     interface Images { byte[] load(int id) throws Exception; }
@@ -90,8 +90,7 @@ final class GeminiClient {
             +"Gib nur eine Lernhilfe, keine Anweisung für eine aktuelle Fahrsituation.";
         return new JSONObject().put("systemInstruction",new JSONObject().put("parts",new JSONArray().put(text(instruction))))
             .put("contents",new JSONArray().put(new JSONObject().put("role","user").put("parts",parts)))
-            .put("generationConfig",new JSONObject().put("temperature",0.2).put("maxOutputTokens",1200)
-                .put("thinkingConfig",new JSONObject().put("thinkingBudget",0)));
+            .put("generationConfig",new JSONObject().put("temperature",0.2).put("maxOutputTokens",1200));
     }
     static String explanation(JSONObject response) throws Exception {
         JSONArray candidates=response.optJSONArray("candidates");
@@ -106,22 +105,60 @@ final class GeminiClient {
     static String httpError(int status) {
         if(status==400||status==401||status==403)return "Gemini hat die Anfrage abgelehnt. Prüfe deinen API-Key und die Gemini-Freigabe in Google AI Studio.";
         if(status==429)return "Dein Gemini-Kontingent oder Anfragelimit ist erreicht. Bitte später erneut versuchen.";
-        if(status==404)return "Das Gemini-Modell ist für diesen Schlüssel nicht verfügbar.";
+        if(status==404)return "Für diesen Schlüssel wurde kein passendes Gemini-Textmodell gefunden.";
         return "Gemini ist gerade nicht verfügbar. Bitte später erneut versuchen.";
     }
-    String explain(JSONObject question, Images images) throws Exception {
-        String key=readKey();byte[] body=payload(question,images).toString().getBytes(StandardCharsets.UTF_8);
-        HttpURLConnection c=(HttpURLConnection)new URL("https://generativelanguage.googleapis.com/v1beta/models/"+MODEL+":generateContent").openConnection();
+    static String selectModel(JSONObject response) throws Exception {
+        JSONArray models=response.optJSONArray("models");if(models==null)throw new UserError("Gemini hat keine Modellliste geliefert.");
+        java.util.List<String> usable=new java.util.ArrayList<>();
+        for(int i=0;i<models.length();i++) {
+            JSONObject model=models.getJSONObject(i);String name=model.optString("name","");
+            JSONArray methods=model.optJSONArray("supportedGenerationMethods");boolean generate=false;
+            if(methods!=null)for(int j=0;j<methods.length();j++)if("generateContent".equals(methods.optString(j)))generate=true;
+            String low=name.toLowerCase(java.util.Locale.ROOT);
+            if(generate&&name.matches("models/[A-Za-z0-9._-]{1,120}")&&low.contains("gemini")&&low.contains("flash")
+                &&!low.matches(".*(image|tts|audio|live|embedding|robotics).*"))usable.add(name);
+        }
+        if(usable.isEmpty())throw new UserError("Für diesen Schlüssel ist kein geeignetes Gemini-Flash-Textmodell freigeschaltet.");
+        String[] preferred={"models/gemini-3.7-flash","models/gemini-3.5-flash","models/gemini-3-flash-preview",
+            DEFAULT_MODEL,"models/gemini-2.5-flash-lite"};
+        for(String candidate:preferred)if(usable.contains(candidate))return candidate;
+        usable.sort(java.util.Collections.reverseOrder());return usable.get(0);
+    }
+    private static byte[] readBounded(InputStream in, int max) throws IOException {
+        ByteArrayOutputStream out=new ByteArrayOutputStream();byte[] buffer=new byte[8192];int n;
+        while((n=in.read(buffer))!=-1){if(out.size()+n>max)throw new UserError("Gemini-Antwort ist zu groß.");out.write(buffer,0,n);}
+        return out.toByteArray();
+    }
+    private static HttpURLConnection connection(String path, String key) throws Exception {
+        if(!path.matches("[A-Za-z0-9._/?:=-]{1,180}"))throw new UserError("Ungültiger Modellname.");
+        HttpURLConnection c=(HttpURLConnection)new URL("https://generativelanguage.googleapis.com/v1beta/"+path).openConnection();
         c.setInstanceFollowRedirects(false);c.setConnectTimeout(15000);c.setReadTimeout(45000);
-        c.setRequestMethod("POST");c.setDoOutput(true);c.setRequestProperty("Content-Type","application/json; charset=utf-8");
-        c.setRequestProperty("x-goog-api-key",key);c.setFixedLengthStreamingMode(body.length);
+        c.setRequestProperty("x-goog-api-key",key);return c;
+    }
+    private String discoverModel(String key) throws Exception {
+        HttpURLConnection c=connection("models?pageSize=1000",key);
+        try {
+            int status=c.getResponseCode();if(status!=200)throw new UserError(httpError(status));
+            try(InputStream in=c.getInputStream()) {return selectModel(new JSONObject(new String(readBounded(in,1_000_000),StandardCharsets.UTF_8)));}
+        } finally {c.disconnect();}
+    }
+    private String generate(String model, String key, byte[] body) throws Exception {
+        HttpURLConnection c=connection(model+":generateContent",key);
+        c.setRequestMethod("POST");c.setDoOutput(true);c.setRequestProperty("Content-Type","application/json; charset=utf-8");c.setFixedLengthStreamingMode(body.length);
         try {
             try(OutputStream out=c.getOutputStream()){out.write(body);}
             int status=c.getResponseCode();if(status!=200)throw new UserError(httpError(status));
-            try(InputStream in=c.getInputStream();ByteArrayOutputStream out=new ByteArrayOutputStream()){
-                byte[] buffer=new byte[8192];int n;while((n=in.read(buffer))!=-1){if(out.size()+n>1_000_000)throw new UserError("Antwort ist zu groß.");out.write(buffer,0,n);}
-                return explanation(new JSONObject(out.toString("UTF-8")));
-            }
+            try(InputStream in=c.getInputStream()){return explanation(new JSONObject(new String(readBounded(in,1_000_000),StandardCharsets.UTF_8)));}
         } finally {c.disconnect();}
+    }
+    String explain(JSONObject question, Images images) throws Exception {
+        String key=readKey();byte[] body=payload(question,images).toString().getBytes(StandardCharsets.UTF_8);
+        String model=prefs.getString("model","");boolean cached=model.matches("models/[A-Za-z0-9._-]{1,120}");
+        if(!cached)model=discoverModel(key);
+        try {String result=generate(model,key,body);prefs.edit().putString("model",model).apply();return result;}
+        catch(UserError e){if(!cached||!e.getMessage().contains("kein passendes"))throw e;}
+        prefs.edit().remove("model").apply();model=discoverModel(key);
+        String result=generate(model,key,body);prefs.edit().putString("model",model).apply();return result;
     }
 }
