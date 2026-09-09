@@ -10,6 +10,15 @@ import static org.junit.Assert.*;
 @RunWith(RobolectricTestRunner.class)
 @Config(sdk = {26,35})
 public class GeminiTest {
+    @Test public void longOpaqueKeysArePreservedAndHeaderInjectionRejected() throws Exception {
+        String key="auth_"+String.join("",java.util.Collections.nCopies(1500,"a"))+"+/=.";
+        assertEquals(key,GeminiClient.normalizeKey("  "+key+"\n"));
+        assertEquals("short-opaque-key",GeminiClient.normalizeKey("short-opaque-key"));
+        assertThrows(GeminiClient.UserError.class,()->GeminiClient.normalizeKey("key\r\nx-header: value"));
+        assertThrows(GeminiClient.UserError.class,()->GeminiClient.normalizeKey("two parts"));
+        assertThrows(GeminiClient.UserError.class,()->GeminiClient.normalizeKey("   "));
+        assertThrows(GeminiClient.UserError.class,()->GeminiClient.normalizeKey(String.join("",java.util.Collections.nCopies(8193,"a"))));
+    }
     private JSONObject question() throws Exception {
         return new JSONObject().put("text","Synthetische Lernfrage").put("image",12)
             .put("attempts","MUST_NOT_SEND").put("apiKey","MUST_NOT_SEND")

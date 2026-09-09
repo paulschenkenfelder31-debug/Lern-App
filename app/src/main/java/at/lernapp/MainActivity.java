@@ -211,18 +211,44 @@ public class MainActivity extends Activity {
     private void geminiKeyDialog() {
         android.widget.EditText input=new android.widget.EditText(this);
         input.setHint("Gemini-API-Key");
+        input.setInputType(android.text.InputType.TYPE_CLASS_TEXT|android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD|android.text.InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS);
         input.setSingleLine(true);
-        input.setInputType(android.text.InputType.TYPE_CLASS_TEXT|android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD);
+        input.setHorizontallyScrolling(true);
+        input.setFilters(new android.text.InputFilter[0]);
         input.setImportantForAutofill(android.view.View.IMPORTANT_FOR_AUTOFILL_NO);
+        android.widget.LinearLayout fields=new android.widget.LinearLayout(this);
+        fields.setOrientation(android.widget.LinearLayout.VERTICAL);
+        int padding=(int)(20*getResources().getDisplayMetrics().density);
+        fields.setPadding(padding,0,padding,0);
+        fields.addView(input,new android.widget.LinearLayout.LayoutParams(-1,-2));
+        android.widget.TextView count=new android.widget.TextView(this);
+        count.setText("0 Zeichen · lange Keys werden vollständig übernommen");
+        fields.addView(count);
+        input.addTextChangedListener(new android.text.TextWatcher(){
+            public void beforeTextChanged(CharSequence s,int start,int length,int after){}
+            public void onTextChanged(CharSequence s,int start,int before,int length){count.setText(s.length()+" Zeichen · Eingabe bleibt verborgen");}
+            public void afterTextChanged(android.text.Editable s){}
+        });
+        android.widget.Button paste=new android.widget.Button(this);
+        paste.setText("Aus Zwischenablage einfügen");
+        fields.addView(paste);
+        paste.setOnClickListener(v -> {
+            android.content.ClipboardManager clipboard=(android.content.ClipboardManager)getSystemService(CLIPBOARD_SERVICE);
+            android.content.ClipData clip=clipboard==null?null:clipboard.getPrimaryClip();
+            CharSequence text=clip!=null&&clip.getItemCount()>0?clip.getItemAt(0).getText():null;
+            if(text==null){input.setError("Kein Text in der Zwischenablage. Kopiere zuerst deinen API-Key.");return;}
+            input.setText(text);input.setSelection(input.length());
+        });
         android.app.AlertDialog dialog=new android.app.AlertDialog.Builder(this)
             .setTitle("Gemini einrichten")
             .setMessage("Bei „Einfach erklären“ werden die Frage, Antworten, Lösung und Bilder an Google Gemini gesendet. Es gilt dein Gemini-Tarif; Anfragen können Kosten verursachen. Dein Lernverlauf wird nicht übertragen. Der Key wird auf diesem Gerät verschlüsselt gespeichert und nicht in Sicherungen exportiert.")
-            .setView(input).setNegativeButton("Abbrechen",null).setPositiveButton("Speichern",null).create();
+            .setView(fields).setNegativeButton("Abbrechen",null).setPositiveButton("Speichern",null).create();
         dialog.setOnShowListener(ignored -> {
             dialog.getWindow().addFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE);
             dialog.getButton(android.app.AlertDialog.BUTTON_POSITIVE).setOnClickListener(v -> {
                 try { gemini.saveKey(input.getText().toString());input.setText("");dialog.dismiss();event("ai-key","saved"); }
-                catch(Exception e) { input.setError("Key konnte nicht gespeichert werden. Prüfe die Eingabe."); }
+                catch(GeminiClient.UserError e) { input.setError(e.getMessage()); }
+                catch(Exception e) { input.setError("Key konnte nicht verschlüsselt gespeichert werden. Bitte erneut versuchen."); }
             });
         });
         dialog.setOnDismissListener(ignored -> input.setText(""));

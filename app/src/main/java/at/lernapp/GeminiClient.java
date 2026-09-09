@@ -30,9 +30,18 @@ final class GeminiClient {
             .setBlockModes(KeyProperties.BLOCK_MODE_GCM).setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE).build());
         return generator.generateKey();
     }
+    static String normalizeKey(String raw) throws UserError {
+        String key=raw==null?"":raw.trim();
+        if(key.isEmpty())throw new UserError("Bitte deinen vollständigen Gemini-API-Key einfügen.");
+        if(key.length()>8192)throw new UserError("Die Eingabe ist länger als 8192 Zeichen. Bitte nur den API-Key einfügen, keine ganze Datei.");
+        // Accept opaque key formats, including long authorization keys. Only
+        // reject characters unsafe for an HTTP header; Google validates the key.
+        for(int i=0;i<key.length();i++)if(key.charAt(i)<33||key.charAt(i)>126)
+            throw new UserError("Im Key befinden sich Leerzeichen oder Zeilenumbrüche. Bitte den Key erneut vollständig kopieren.");
+        return key;
+    }
     synchronized void saveKey(String raw) throws Exception {
-        String key=raw.trim();
-        if(!key.matches("[A-Za-z0-9_-]{20,256}")) throw new UserError("Bitte einen gültigen Gemini-API-Key eingeben.");
+        String key=normalizeKey(raw);
         Cipher cipher=Cipher.getInstance("AES/GCM/NoPadding");cipher.init(Cipher.ENCRYPT_MODE,encryptionKey());
         byte[] encrypted=cipher.doFinal(key.getBytes(StandardCharsets.UTF_8));
         if(!prefs.edit().putString("ciphertext",Base64.encodeToString(encrypted,Base64.NO_WRAP))
