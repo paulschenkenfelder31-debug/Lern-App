@@ -1,0 +1,30 @@
+name: Web PWA
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: web-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  test-and-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Test shared app and web functions
+        run: npm test
+      - name: Build installable web app
+        run: npm run build:web
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Fahrklar-Web
+          path: dist
+          if-no-files-found: error
+          retention-days: 30

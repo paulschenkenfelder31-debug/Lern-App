@@ -5,6 +5,8 @@ local.properties
 *.keystore
 *.apk
 node_modules/
+dist/
+.sites-runtime/
 *.p12
 *.pfx
 fahrklar-signing-private/

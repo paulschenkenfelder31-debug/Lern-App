@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Fahrklar">
+  <rect width="512" height="512" rx="116" fill="#159a5b"/>
+  <path d="M150 112h226v72H232v70h123v70H232v116h-82z" fill="#fff"/>
+  <path d="m286 365 38 38 76-82" fill="none" stroke="#ffd166" stroke-width="30" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

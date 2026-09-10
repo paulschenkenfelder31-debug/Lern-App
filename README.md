@@ -2,6 +2,8 @@
 
 Eine deutsche, lokal speichernde Lern-App für den österreichischen Führerschein.
 
+Neben der Android-APK enthält das Repository eine installierbare, responsive Web-App für PC und Smartphone. Die fertige Netlify-Konfiguration und Deployment-Anleitung stehen unter [`docs/web.md`](docs/web.md).
+
 ## APK herunterladen
 
 [**Neueste APK öffnen**](https://github.com/paulschenkenfelder31-debug/Lern-App/releases/latest)
