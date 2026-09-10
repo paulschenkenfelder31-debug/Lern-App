@@ -1,6 +1,6 @@
 'use strict';
 const SHELL='fahrklar-shell-v1',DATA='fahrklar-data-v1',IMAGES='fahrklar-images-v1';
-const FILES=['/','/index.html','/app.js','/core.js','/icons.js','/style.css','/web-bridge.js','/manifest.webmanifest','/icon.svg'];
+const FILES=['/','/index.html','/app.js','/core.js','/icons.js','/style.css','/web-bridge.js','/manifest.webmanifest','/icon.svg','/icon-192.png','/icon-512.png'];
 self.addEventListener('install',event=>event.waitUntil(caches.open(SHELL).then(cache=>cache.addAll(FILES)).then(()=>self.skipWaiting())));
 self.addEventListener('activate',event=>event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(key=>key.startsWith('fahrklar-')&&![SHELL,DATA,IMAGES].includes(key)).map(key=>caches.delete(key)))).then(()=>self.clients.claim())));
 self.addEventListener('message',event=>{if(event.data==='SKIP_WAITING')self.skipWaiting();});
