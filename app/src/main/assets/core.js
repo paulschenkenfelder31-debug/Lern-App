@@ -62,6 +62,9 @@
     }
     data.settings.goal=Math.max(1,Math.min(1000,Number(data.settings.goal)||30));
     data.settings.dark=!!data.settings.dark;data.settings.auto=!!data.settings.auto;
+    data.settings.largeText=!!data.settings.largeText;data.settings.reduceMotion=!!data.settings.reduceMotion;
+    data.settings.keepAwake=data.settings.keepAwake!==false;data.settings.haptics=data.settings.haptics!==false;
+    data.settings.sessionSize=[10,20,30].includes(Number(data.settings.sessionSize))?Number(data.settings.sessionSize):20;
     data.settings.theme=['green','blue','purple','orange'].includes(data.settings.theme)?data.settings.theme:'green';
     return {...data,active:null};
   }

@@ -12,8 +12,9 @@ Jeder Push nach `main` führt Logiktests, Android-Build und Lint aus und stellt 
 
 ## Funktionen
 
-- Deutsche Oberfläche, helles/dunkles Design, Tagesziel und lokale Lernserie.
+- Deutsche Oberfläche mit vier Farbthemen, hellem/dunklem Design, größerer Schrift, reduzierbaren Animationen, Tagesziel und lokaler Lernserie.
 - Lernrunden, Suche, Themenfilter, neue Fragen, zuletzt falsche Fragen und Merkliste.
+- Kurze, normale oder intensive Lernrunden mit 10, 20 oder 30 Fragen. Optional bleiben Bildschirm und Fokus während einer Einheit aktiv; richtig/falsch kann haptisch bestätigt werden.
 - Multiple Choice mit vollständiger Antwortauswertung und Bildunterstützung.
 - Übungssimulationen pro gewähltem Modul: 20 zufällige Hauptfragen, verknüpfte Zusatzfragen nur nach richtiger Hauptfrage, 30 Minuten pro Modul, 80 % der möglichen Punkte als Übungsziel. Keine amtlich zertifizierte Simulation; die genaue amtliche Themenverteilung und Sonderregeln von AM/Fahrlehrer sind nicht nachgebildet.
 - Alle Antworten und Simulationen mit Verlauf und Lösungssnapshots der damaligen Text-/Antwortversion. Historische Bilder werden über ihre Quell-ID referenziert und können sich beim Anbieter ändern.
@@ -56,9 +57,9 @@ Bilder werden direkt vom Anbieter geladen, lokal gespeichert und können für di
 
 ## Signierung und Updates
 
-Die erste bereitgestellte APK ist eine **Debug-Testversion**, keine produktiv signierte Veröffentlichung. Der temporäre Debug-Schlüssel kann sich je Build ändern. Android kann dann eine Neuinstallation verlangen; vorher in der App eine JSON-Sicherung exportieren und anschließend wiederherstellen. Kein privater Signierschlüssel wird öffentlich gespeichert.
+Solange die beiden GitHub-Secrets noch fehlen, erstellt die Pipeline eine **Debug-Testversion**. Der temporäre Debug-Schlüssel kann sich je Build ändern. Android kann dann eine Neuinstallation verlangen; vorher in der App eine JSON-Sicherung exportieren und anschließend wiederherstellen. Kein privater Signierschlüssel wird öffentlich gespeichert.
 
-Für dauerhafte Installation mit Updates ohne Neuinstallation muss der Eigentümer einen privaten Release-Keystore sicher aufbewahren und als GitHub Actions Secret einrichten; der Release-Build ist entsprechend zu ergänzen. Diese erste Version legt keine Geheimnisse im Repository an und verspricht keine dauerhafte Signatur.
+Für dauerhafte Installation mit Updates ohne Neuinstallation muss der Eigentümer einmalig einen privaten Release-Keystore sicher aufbewahren und als GitHub Actions Secrets einrichten. Die Pipeline unterstützt das bereits und veröffentlicht danach automatisch dauerhaft signierte APKs. Die genauen Schritte stehen in [`docs/updates.md`](docs/updates.md); `scripts/setup-signing.sh` richtet die Secrets über die GitHub CLI ein. Beim einmaligen Wechsel von der Testsignatur zur Release-Signatur ist noch eine Neuinstallation nötig, danach lassen sich alle künftigen Versionen darüberinstallieren.
 
 ## Entwicklung
 
@@ -94,6 +95,8 @@ Primär verwendet die App die aktuelle `interactions`-Schnittstelle mit dem Alia
 Die Übersicht zeigt einen vertikalen Fahrklar-Lernpfad mit adaptiver Lernrunde, fälligen Wiederholungen, Prüfungssimulation und Meisterungsziel. Vollständig richtige Antworten bringen 10 XP, gemeisterte Fragen 20 XP und bestandene Übungssimulationen 100 XP. Je 500 XP steigt das lokale Level. Tagesaufgabe, Lernserie und Fokus-Anzeige machen Fortschritt schneller sichtbar. Fokus sinkt bei heutigen Fehlern, sperrt aber keine Übung und wird täglich neu berechnet. Alle Werte entstehen lokal aus dem vorhandenen Verlauf; es gibt kein Konto, keine Rangliste und keine Übertragung dieser Werte.
 
 Unter **Einstellungen → Farbthema** stehen Waldgrün, Klarblau, Violett und Orange zur Auswahl. Jedes Thema verwendet für Navigation, Lernpfad, Levelkarte, Fortschrittsbalken und Ergebnisanzeige nur Abstufungen seiner Hauptfarbe. Gold bleibt auf Belohnungen und Tagesaufgaben beschränkt. Die Auswahl wird lokal gespeichert und funktioniert zusammen mit dem hellen und dunklen Design.
+
+Die Einstellungen sind in **Persönlich**, **Dienste** sowie **Daten & Info** gegliedert. Selten benötigte Bereiche wie Offline-Bilder, Sicherung, Quellenhinweise und Lizenzen lassen sich platzsparend aufklappen. Seitenwechsel, Antwortauswahl und Fortschrittsbalken verwenden kurze Übergänge; sowohl die Systemeinstellung für reduzierte Bewegung als auch der eigene Schalter deaktivieren sie.
 
 Die Tests prüfen Request-Felder, Bildzuordnung, Antwortschlüssel, unvollständige/abgelehnte Antworten, Prüfungssperre, Zwischenspeicherung und HTML-Escaping mit synthetischen Daten. Eine echte Gemini-Anfrage mit dem persönlichen Key und die hardwaregestützte Schlüsselspeicherung müssen auf dem Gerät geprüft werden.
 

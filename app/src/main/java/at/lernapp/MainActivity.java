@@ -262,6 +262,17 @@ public class MainActivity extends Activity {
         event(success?"ai-test":"ai-test-error",value);
     }
     public class Bridge {
+        @JavascriptInterface public void setKeepAwake(boolean enabled) {
+            runOnUiThread(() -> { if(web!=null) web.setKeepScreenOn(enabled); });
+        }
+        @JavascriptInterface public void feedback(String kind) {
+            if(!"correct".equals(kind)&&!"wrong".equals(kind))return;
+            runOnUiThread(() -> {
+                if(web!=null) web.performHapticFeedback("correct".equals(kind)
+                    ? android.view.HapticFeedbackConstants.KEYBOARD_TAP
+                    : android.view.HapticFeedbackConstants.LONG_PRESS);
+            });
+        }
         @JavascriptInterface public boolean hasGeminiKey() { return gemini.hasKey(); }
         @JavascriptInterface public void configureGemini() { runOnUiThread(() -> geminiKeyDialog()); }
         @JavascriptInterface public void deleteGeminiKey() {
@@ -341,5 +352,5 @@ public class MainActivity extends Activity {
     @Override public void onBackPressed() { web.evaluateJavascript("window.goBack ? window.goBack() : false", value -> { if ("false".equals(value)) finish(); }); }
     @Override protected void onPause() { web.evaluateJavascript("window.pauseApp && window.pauseApp()",null); super.onPause(); }
     @Override protected void onResume() { super.onResume(); if(web!=null) web.evaluateJavascript("window.resumeApp && window.resumeApp()",null); }
-    @Override protected void onDestroy() {worker.shutdownNow(); aiWorker.shutdownNow(); web.removeJavascriptInterface("Native"); web.destroy(); super.onDestroy();}
+    @Override protected void onDestroy() {worker.shutdownNow(); aiWorker.shutdownNow(); web.setKeepScreenOn(false); web.removeJavascriptInterface("Native"); web.destroy(); super.onDestroy();}
 }

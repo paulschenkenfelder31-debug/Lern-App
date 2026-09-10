@@ -99,7 +99,7 @@ jobs:
 
           **Fragenquelle:** Die APK enthält keine fremden Fragen oder Bilder. Die direkte Verbindung zu F-Online lässt sich nach Klärung der dort verlangten schriftlichen Nutzungsgenehmigung in der App aktivieren.
 
-          Neu: vier ruhige, einheitliche Farbthemen in den Einstellungen. Der Gemini-Verbindungstest verwendet nun Googles minimale dokumentierte Anfrage und unterscheidet sicher zwischen ungültigem Key, fehlender API-Freigabe, Projektproblemen und einem nicht verfügbaren Modell.
+          Neu: deutlich aufgeräumte Einstellungen, Lernrunden mit 10/20/30 Fragen, größere Schrift, optional aktiver Bildschirm und haptisches Antwortfeedback. Dezente Seiten- und Antwortübergänge lassen sich vollständig reduzieren. Die vier ruhigen Farbthemen und die Gemini-Lernhilfe bleiben erhalten.
 
           Die Simulationen sind Übungsprüfungen und keine amtliche Prüfungssoftware.
           NOTES
