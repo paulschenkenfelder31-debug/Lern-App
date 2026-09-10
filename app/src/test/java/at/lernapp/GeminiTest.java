@@ -71,4 +71,13 @@ public class GeminiTest {
             .put(new JSONObject().put("type","model_output").put("content",new JSONArray().put(new JSONObject().put("type","text").put("text","Erklärung")))));
         assertEquals("Erklärung",GeminiClient.interactionExplanation(response));
     }
+    @Test public void connectionTestIsSmallAndContainsNoLearningData() throws Exception {
+        JSONObject legacy=GeminiClient.testPayload();
+        JSONObject request=GeminiClient.interactionPayload(legacy);
+        assertEquals(16,request.getJSONObject("generation_config").getInt("max_output_tokens"));
+        assertEquals(1,request.getJSONArray("input").length());
+        assertFalse(request.toString().contains("Führerschein"));
+        assertFalse(request.toString().contains("Antwortschlüssel"));
+        assertFalse(request.getBoolean("store"));
+    }
 }

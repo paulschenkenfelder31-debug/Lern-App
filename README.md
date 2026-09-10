@@ -81,7 +81,7 @@ Die Oberfläche verwendet lokal eingebettete SVG-Piktogramme aus [Lucide](https:
 Ohne gespeicherten Katalog führen Übersicht, Lernen und Prüfung zur Download-Einführung. Ein laufender Download ist sichtbar und verhindert doppelte Anfragen. Fehler zeigen eine Wiederholen-Schaltfläche; ein fehlgeschlagener Abgleich entfernt den bisherigen Katalog nicht. Texte und Antworten sind nach dem Download offline verfügbar; die Bilder der gewählten Module können separat in den Einstellungen geladen werden.
 # Gemini-Lernhilfe
 
-Unter **Einstellungen → Deine KI-Lernhilfe → Gemini einrichten** lässt sich ein eigener Gemini-API-Key direkt auf dem Android-Gerät hinterlegen. Nach einer Antwort oder in einer abgeschlossenen Einheit erscheint **Einfach erklären**. Gemini erklärt die Kataloglösung in einfachem Deutsch und ergänzt einen Merksatz. Während einer aktiven Prüfungssimulation ist die Funktion gesperrt.
+Unter **Einstellungen → Deine KI-Lernhilfe → Gemini einrichten** lässt sich ein eigener Gemini-API-Key direkt auf dem Android-Gerät hinterlegen. Mit **Gemini-Verbindung testen** kann der Key anschließend geprüft werden, ohne zuerst eine Führerscheinfrage zu beantworten; dabei wird nur eine kurze Testanfrage gesendet. Nach einer Antwort oder in einer abgeschlossenen Einheit erscheint **Einfach erklären**. Gemini erklärt die Kataloglösung in einfachem Deutsch und ergänzt einen Merksatz. Während einer aktiven Prüfungssimulation ist die Funktion gesperrt.
 
 Eine Anfrage übermittelt ausschließlich die aktuelle Frage, Antwortoptionen, den Katalog-Antwortschlüssel und zugehörige Bilder an Google. Sie erfolgt nur nach Antippen; das eigene Gemini-Kontingent bzw. der eigene Tarif gilt. Fehlende Bilder brechen den Abruf ab, statt Gemini ohne wichtige Bildinformationen antworten zu lassen. Generierte Erklärungen sind gekennzeichnete Lernhilfen, können falsch sein und ändern weder Lösungen noch Statistiken.
 
@@ -95,4 +95,4 @@ Die Übersicht zeigt einen vertikalen Fahrklar-Lernpfad mit adaptiver Lernrunde,
 
 Die Tests prüfen Request-Felder, Bildzuordnung, Antwortschlüssel, unvollständige/abgelehnte Antworten, Prüfungssperre, Zwischenspeicherung und HTML-Escaping mit synthetischen Daten. Eine echte Gemini-Anfrage mit dem persönlichen Key und die hardwaregestützte Schlüsselspeicherung müssen auf dem Gerät geprüft werden.
 
-Referenzen: [Gemini generateContent](https://ai.google.dev/api/generate-content), [Gemini 2.5 Flash](https://ai.google.dev/gemini-api/docs/models/gemini-2.5-flash), [Android Keystore](https://developer.android.com/privacy-and-security/keystore).
+Referenzen: [Gemini Interactions API](https://ai.google.dev/api/interactions-api), [Gemini API-Keys](https://ai.google.dev/gemini-api/docs/api-key), [Android Keystore](https://developer.android.com/privacy-and-security/keystore).

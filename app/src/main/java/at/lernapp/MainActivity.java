@@ -258,6 +258,9 @@ public class MainActivity extends Activity {
         try {event(success?"ai-result":"ai-error",new JSONObject().put("id",id).put("text",value).toString());}
         catch(JSONException ignored) {}
     }
+    private void aiTestResult(String value, boolean success) {
+        event(success?"ai-test":"ai-test-error",value);
+    }
     public class Bridge {
         @JavascriptInterface public boolean hasGeminiKey() { return gemini.hasKey(); }
         @JavascriptInterface public void configureGemini() { runOnUiThread(() -> geminiKeyDialog()); }
@@ -277,6 +280,15 @@ public class MainActivity extends Activity {
                 try { aiResult(requestId,gemini.explain(new JSONObject(questionJson),id -> imageBytes("https://img.f-online.at/"+id+".jpg")),true); }
                 catch(GeminiClient.UserError e){aiResult(requestId,e.getMessage(),false);}
                 catch(Exception e){aiResult(requestId,"Erklärung konnte nicht geladen werden. Prüfe Internet und API-Key; auch benötigte Bilder müssen verfügbar sein.",false);}
+                finally {aiBusy.set(false);}
+            });
+        }
+        @JavascriptInterface public void testGemini() {
+            if(!aiBusy.compareAndSet(false,true)){aiTestResult("Eine Gemini-Anfrage läuft bereits.",false);return;}
+            aiWorker.execute(() -> {
+                try {aiTestResult(gemini.testConnection(),true);}
+                catch(GeminiClient.UserError e){aiTestResult(e.getMessage(),false);}
+                catch(Exception e){aiTestResult("Verbindungstest fehlgeschlagen. Prüfe Internet und API-Key.",false);}
                 finally {aiBusy.set(false);}
             });
         }

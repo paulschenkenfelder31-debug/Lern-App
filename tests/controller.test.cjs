@@ -46,7 +46,7 @@ test('App update errors are separate from question downloads and never erase his
   assert.doesNotMatch(t.elements['#app'].innerHTML,/data-action="open-update"/);
   assert.equal(t.run('transferBusy'),true);assert.equal(t.run('downloadState.phase'),'loading');
 });
-function aiBridge(calls){return {loadState:()=> '{}',saveState:()=>true,hasGeminiKey:()=>true,appInfo:()=> '{"version":"test","stable":false}',explainQuestion:(id,json)=>calls.push({id,json}),configureGemini(){}};}
+function aiBridge(calls){return {loadState:()=> '{}',saveState:()=>true,hasGeminiKey:()=>true,appInfo:()=> '{"version":"test","stable":false}',explainQuestion:(id,json)=>calls.push({id,json}),testGemini:()=>calls.push({test:true}),configureGemini(){}};}
 test('AI is unavailable before answering and throughout an exam; request sends only the question',async()=>{
   const calls=[],t=await setup(aiBridge(calls));t.run('startTrain([catalog[0]])');
   t.run('requestAi(aiQuestionKey(question()))');assert.equal(calls.length,0);
@@ -65,6 +65,14 @@ test('AI results are escaped, correlated by request, cached and excluded from ba
   assert.match(t.run('aiPanel(question())'),/&lt;script&gt;/);
   assert.doesNotMatch(t.run('JSON.stringify(state)'),/unsafe/);
   t.run('requestAi(aiQuestionKey(question()))');assert.equal(calls.length,1);
+});
+test('Gemini connection test is explicit and reports success or an escaped API error',async()=>{
+  const calls=[],t=await setup(aiBridge(calls));t.run("route='settings';render();actions['ai-test']()");
+  assert.deepEqual(calls,[{test:true}]);assert.match(t.elements['#app'].innerHTML,/Verbindung wird geprüft/);
+  await t.run("window.nativeEvent('ai-test-error','HTTP 403 <ungültig>')");
+  assert.match(t.elements['#app'].innerHTML,/HTTP 403 &lt;ungültig&gt;/);assert.doesNotMatch(t.elements['#app'].innerHTML,/<ungültig>/);
+  await t.run("window.nativeEvent('ai-test','Verbindung erfolgreich.')");
+  assert.match(t.elements['#app'].innerHTML,/Verbindung erfolgreich/);
 });
 test('Playful home exposes a learning path with deterministic XP and non-blocking focus',async()=>{
   const t=await setup();t.run('state.attempts=[];state.sessions=[];rebuildProgress();route="home";render()');

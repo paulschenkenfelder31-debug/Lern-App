@@ -99,7 +99,7 @@ jobs:
 
           **Fragenquelle:** Die APK enthält keine fremden Fragen oder Bilder. Die direkte Verbindung zu F-Online lässt sich nach Klärung der dort verlangten schriftlichen Nutzungsgenehmigung in der App aktivieren.
 
-          Neu: spielerischer Lernpfad mit XP, Level, Tagesaufgabe und Fokus-Anzeige. Die Gemini-Lernhilfe verwendet nun den aktuellen Interactions-Endpunkt für neue Auth Keys und zeigt bei Fehlern den betroffenen Endpunkt samt HTTP-Status.
+          Neu: spielerischere Lernrunden und Abschlusskarten, klarere Navigation sowie ein direkter Gemini-Verbindungstest in den Einstellungen. Der Test zeigt verständlich, ob der eigene Key mit Gemini Flash funktioniert.
 
           Die Simulationen sind Übungsprüfungen und keine amtliche Prüfungssoftware.
           NOTES

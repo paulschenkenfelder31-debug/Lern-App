@@ -96,6 +96,14 @@ final class GeminiClient {
             .put("contents",new JSONArray().put(new JSONObject().put("role","user").put("parts",parts)))
             .put("generationConfig",new JSONObject().put("temperature",0.2).put("maxOutputTokens",1200));
     }
+    static JSONObject testPayload() throws Exception {
+        return new JSONObject()
+            .put("systemInstruction",new JSONObject().put("parts",new JSONArray().put(text(
+                "Du bist ein Verbindungstest. Antworte ausschließlich mit dem Wort OK."))))
+            .put("contents",new JSONArray().put(new JSONObject().put("role","user")
+                .put("parts",new JSONArray().put(text("Verbindung prüfen")))))
+            .put("generationConfig",new JSONObject().put("temperature",0).put("maxOutputTokens",16));
+    }
     static String explanation(JSONObject response) throws Exception {
         JSONArray candidates=response.optJSONArray("candidates");
         if(candidates==null||candidates.length()==0)throw new UserError("Gemini hat keine Erklärung geliefert. Bitte erneut versuchen.");
@@ -123,8 +131,10 @@ final class GeminiClient {
             }
         }
         String instruction=legacy.getJSONObject("systemInstruction").getJSONArray("parts").getJSONObject(0).getString("text");
+        int max=legacy.optJSONObject("generationConfig")==null?1200:
+            legacy.getJSONObject("generationConfig").optInt("maxOutputTokens",1200);
         return new JSONObject().put("model","gemini-flash-latest").put("input",input).put("system_instruction",instruction)
-            .put("store",false).put("generation_config",new JSONObject().put("max_output_tokens",1200).put("thinking_level","minimal"));
+            .put("store",false).put("generation_config",new JSONObject().put("max_output_tokens",max).put("thinking_level","minimal"));
     }
     static String interactionExplanation(JSONObject response) throws Exception {
         if(!"completed".equals(response.optString("status")))throw new UserError("Gemini konnte die Erklärung nicht abschließen. Bitte erneut versuchen.");
@@ -192,8 +202,7 @@ final class GeminiClient {
             try(InputStream in=c.getInputStream()){return interactionExplanation(new JSONObject(new String(readBounded(in,1_000_000),StandardCharsets.UTF_8)));}
         } finally {c.disconnect();}
     }
-    String explain(JSONObject question, Images images) throws Exception {
-        String key=readKey();JSONObject request=payload(question,images);
+    private String request(String key, JSONObject request) throws Exception {
         try{return interact(key,request);}catch(ApiError current){if(current.status!=404)throw current;}
         byte[] body=request.toString().getBytes(StandardCharsets.UTF_8);
         String model=prefs.getString("model","");boolean cached=model.matches("models/[A-Za-z0-9._-]{1,120}");
@@ -202,5 +211,13 @@ final class GeminiClient {
         catch(UserError e){if(!cached||!e.getMessage().contains("kein passendes"))throw e;}
         prefs.edit().remove("model").apply();model=discoverModel(key);
         String result=generate(model,key,body);prefs.edit().putString("model",model).apply();return result;
+    }
+    String explain(JSONObject question, Images images) throws Exception {
+        return request(readKey(),payload(question,images));
+    }
+    String testConnection() throws Exception {
+        String answer=request(readKey(),testPayload());
+        if(answer.trim().isEmpty())throw new UserError("Gemini hat beim Verbindungstest nicht geantwortet.");
+        return "Verbindung erfolgreich. Gemini Flash ist für diesen API-Key verfügbar.";
     }
 }
