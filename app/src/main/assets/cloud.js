@@ -20,7 +20,7 @@ function errorMessage(error){
 }
 async function request(url,options={}){
   const response=await fetch(url,options),body=await response.json().catch(()=>({}));
-  if(!response.ok){const e=new Error('Firebase request failed');e.firebaseCode=body?.error?.message||String(response.status);throw e;}
+  if(!response.ok){const e=new Error('Firebase request failed');e.firebaseCode=body?.error?.status||body?.error?.message||String(response.status);throw e;}
   return body;
 }
 function authUrl(action){return'https://identitytoolkit.googleapis.com/v1/accounts:'+action+'?key='+encodeURIComponent(config.apiKey);}
@@ -80,8 +80,6 @@ async function getDoc(path){try{return decoded(await firestore(path));}catch(err
 async function putDoc(path,value){return firestore(path,{method:'PATCH',headers:{'content-type':'application/json'},body:JSON.stringify(encoded(value))});}
 async function listSessions(){
   let result=[],page='';
-  do{const data=await firestore('',{query:'?pageSize=300'+(page?'&pageToken='+encodeURIComponent(page):'')+'&showMissing=false'}).catch(()=>({}));void data;break;}while(page);
-  page='';
   do{const suffix='users/'+auth.localId+'/sessions';const data=await firestore(suffix,{query:'?pageSize=300'+(page?'&pageToken='+encodeURIComponent(page):'')});for(const doc of data.documents||[]){const value=decoded(doc);if(value?.id)result.push(value);}page=data.nextPageToken||'';}while(page);
   return result;
 }
