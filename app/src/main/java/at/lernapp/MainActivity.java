@@ -60,10 +60,13 @@ public class MainActivity extends Activity {
                     if ("https".equals(uri.getScheme()) && "appassets.androidplatform.net".equals(uri.getHost())) {
                         String path = uri.getPath();
                         if ("/catalog.json".equals(path)) return json(read("catalog.json", "{\"questions\":[],\"meta\":{}}"));
-                        if (path != null && path.matches("/(index.html|app.js|core.js|icons.js|style.css)")) {
+                        if (path != null && path.matches("/(index.html|app.js|core.js|icons.js|style.css|firebase-config.js|cloud.js)")) {
                             String mime = path.endsWith(".css") ? "text/css" : path.endsWith(".js") ? "text/javascript" : "text/html";
                             return new WebResourceResponse(mime,"UTF-8",200,"OK",Collections.emptyMap(),getAssets().open(path.substring(1)));
                         }
+                    }
+                    if ("https".equals(uri.getScheme()) && ("identitytoolkit.googleapis.com".equals(uri.getHost()) || "securetoken.googleapis.com".equals(uri.getHost()) || "firestore.googleapis.com".equals(uri.getHost()))) {
+                        return null;
                     }
                     if ("https".equals(uri.getScheme()) && "img.f-online.at".equals(uri.getHost()) && uri.getPath().matches("/[0-9]+\\.jpg")) {
                         return new WebResourceResponse("image/jpeg", null, 200, "OK", Collections.emptyMap(), new ByteArrayInputStream(imageBytes(uri.toString())));

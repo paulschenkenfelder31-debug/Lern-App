@@ -8,7 +8,7 @@ const dist=resolve(root,'dist');
 
 await rm(dist,{recursive:true,force:true});
 await mkdir(dist,{recursive:true});
-for(const name of ['app.js','core.js','icons.js','style.css'])await copyFile(resolve(assets,name),resolve(dist,name));
+for(const name of ['app.js','core.js','icons.js','style.css','firebase-config.js','cloud.js'])await copyFile(resolve(assets,name),resolve(dist,name));
 for(const name of ['web-bridge.js','sw.js','manifest.webmanifest','icon.svg','icon-192.png','icon-512.png'])await copyFile(resolve(web,name),resolve(dist,name));
 
 let html=await readFile(resolve(assets,'index.html'),'utf8');

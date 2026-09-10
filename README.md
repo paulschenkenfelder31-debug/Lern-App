@@ -21,7 +21,7 @@ Jeder Push nach `main` führt Logiktests, Android-Build und Lint aus und stellt 
 - Übungssimulationen pro gewähltem Modul: 20 zufällige Hauptfragen, verknüpfte Zusatzfragen nur nach richtiger Hauptfrage, 30 Minuten pro Modul, 80 % der möglichen Punkte als Übungsziel. Keine amtlich zertifizierte Simulation; die genaue amtliche Themenverteilung und Sonderregeln von AM/Fahrlehrer sind nicht nachgebildet.
 - Alle Antworten und Simulationen mit Verlauf und Lösungssnapshots der damaligen Text-/Antwortversion. Historische Bilder werden über ihre Quell-ID referenziert und können sich beim Anbieter ändern.
 - Trefferquote, aktive Fragen pro Minute, Lernzeit, Mittelwert/Median/P90 der Antwortzeit, Erstversuchsquote, Katalogabdeckung, Beherrschung nach drei richtigen Antworten in Folge, Tagesverlauf, schwache Themen, Prüfungserfolgsquote, Zeitraum- und Modulfilter.
-- Keine Anmeldung, Werbung, Cloud-Synchronisation oder Analyse-Tracker. Android-Cloud-Backup ist deaktiviert. JSON-Sicherung und Wiederherstellung über den Android-Dateidialog.
+- Optionales, per E-Mail bestätigtes Firebase-Konto synchronisiert abgeschlossene Lernrunden, Prüfungen, Einstellungen und Merkliste zwischen Web und Android. Ohne Anmeldung bleibt alles lokal nutzbar. Keine Werbung oder Analyse-Tracker.
 
 ## Fragenquelle und Rechte
 
@@ -103,3 +103,7 @@ Die Einstellungen sind in **Persönlich**, **Dienste** sowie **Daten & Info** ge
 Die Tests prüfen Request-Felder, Bildzuordnung, Antwortschlüssel, unvollständige/abgelehnte Antworten, Prüfungssperre, Zwischenspeicherung und HTML-Escaping mit synthetischen Daten. Eine echte Gemini-Anfrage mit dem persönlichen Key und die hardwaregestützte Schlüsselspeicherung müssen auf dem Gerät geprüft werden.
 
 Referenzen: [Gemini Interactions API](https://ai.google.dev/api/interactions-api), [Gemini API-Keys](https://ai.google.dev/gemini-api/docs/api-key), [Android Keystore](https://developer.android.com/privacy-and-security/keystore).
+
+## Konto und Synchronisierung
+
+Das optionale Konto verwendet Firebase Authentication mit E-Mail/Passwort und Cloud Firestore. Die App initialisiert kein Firebase Analytics. Erst nach bestätigter E-Mail erlauben die Firestore-Regeln Zugriff auf den eigenen Nutzerpfad. Abgeschlossene Sitzungen werden zusammengeführt, laufende Einheiten bleiben lokal. Einrichtung und Veröffentlichung der Regeln: [`docs/accounts.md`](docs/accounts.md).
