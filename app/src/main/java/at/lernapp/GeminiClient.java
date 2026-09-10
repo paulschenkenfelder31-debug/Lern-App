@@ -15,7 +15,11 @@ import java.io.*;
 
 /** User-owned Gemini key stays in the native layer, encrypted with Android Keystore. */
 final class GeminiClient {
-    static final class UserError extends IOException { UserError(String message) { super(message); } }
+    static class UserError extends IOException { UserError(String message) { super(message); } }
+    static final class ApiError extends UserError {
+        final int status;
+        ApiError(int status,String message){super(message);this.status=status;}
+    }
     static final String DEFAULT_MODEL = "models/gemini-2.5-flash";
     private static final String ALIAS = "fahrklar.gemini.v1";
     private final SharedPreferences prefs;
@@ -108,6 +112,31 @@ final class GeminiClient {
         if(status==404)return "Für diesen Schlüssel wurde kein passendes Gemini-Textmodell gefunden.";
         return "Gemini ist gerade nicht verfügbar. Bitte später erneut versuchen.";
     }
+    static JSONObject interactionPayload(JSONObject legacy) throws Exception {
+        JSONArray source=legacy.getJSONArray("contents").getJSONObject(0).getJSONArray("parts"),input=new JSONArray();
+        for(int i=0;i<source.length();i++) {
+            JSONObject part=source.getJSONObject(i);
+            if(part.has("text"))input.put(new JSONObject().put("type","text").put("text",part.getString("text")));
+            else if(part.has("inlineData")) {
+                JSONObject image=part.getJSONObject("inlineData");
+                input.put(new JSONObject().put("type","image").put("mime_type",image.getString("mimeType")).put("data",image.getString("data")));
+            }
+        }
+        String instruction=legacy.getJSONObject("systemInstruction").getJSONArray("parts").getJSONObject(0).getString("text");
+        return new JSONObject().put("model","gemini-flash-latest").put("input",input).put("system_instruction",instruction)
+            .put("store",false).put("generation_config",new JSONObject().put("max_output_tokens",1200).put("thinking_level","minimal"));
+    }
+    static String interactionExplanation(JSONObject response) throws Exception {
+        if(!"completed".equals(response.optString("status")))throw new UserError("Gemini konnte die Erklärung nicht abschließen. Bitte erneut versuchen.");
+        JSONArray steps=response.optJSONArray("steps");StringBuilder result=new StringBuilder();
+        if(steps!=null)for(int i=0;i<steps.length();i++) {
+            JSONObject step=steps.getJSONObject(i);if(!"model_output".equals(step.optString("type")))continue;
+            JSONArray content=step.optJSONArray("content");if(content==null)continue;
+            for(int j=0;j<content.length();j++){JSONObject item=content.getJSONObject(j);if("text".equals(item.optString("type")))result.append(item.optString("text",""));}
+        }
+        String value=result.toString().trim();if(value.isEmpty()||value.length()>12000)throw new UserError("Gemini hat keine nutzbare Erklärung geliefert.");
+        return value;
+    }
     static String selectModel(JSONObject response) throws Exception {
         JSONArray models=response.optJSONArray("models");if(models==null)throw new UserError("Gemini hat keine Modellliste geliefert.");
         java.util.List<String> usable=new java.util.ArrayList<>();
@@ -148,12 +177,25 @@ final class GeminiClient {
         c.setRequestMethod("POST");c.setDoOutput(true);c.setRequestProperty("Content-Type","application/json; charset=utf-8");c.setFixedLengthStreamingMode(body.length);
         try {
             try(OutputStream out=c.getOutputStream()){out.write(body);}
-            int status=c.getResponseCode();if(status!=200)throw new UserError(httpError(status));
+            int status=c.getResponseCode();if(status!=200)throw new ApiError(status,"Gemini-Fehler bei der Modellanfrage (HTTP "+status+"). "+httpError(status));
             try(InputStream in=c.getInputStream()){return explanation(new JSONObject(new String(readBounded(in,1_000_000),StandardCharsets.UTF_8)));}
         } finally {c.disconnect();}
     }
+    private String interact(String key, JSONObject legacy) throws Exception {
+        byte[] body=interactionPayload(legacy).toString().getBytes(StandardCharsets.UTF_8);
+        HttpURLConnection c=connection("interactions",key);c.setRequestMethod("POST");c.setDoOutput(true);
+        c.setRequestProperty("Content-Type","application/json; charset=utf-8");c.setFixedLengthStreamingMode(body.length);
+        try {
+            try(OutputStream out=c.getOutputStream()){out.write(body);}
+            int status=c.getResponseCode();
+            if(status!=200)throw new ApiError(status,"Gemini-Fehler am aktuellen API-Endpunkt (HTTP "+status+"). "+httpError(status));
+            try(InputStream in=c.getInputStream()){return interactionExplanation(new JSONObject(new String(readBounded(in,1_000_000),StandardCharsets.UTF_8)));}
+        } finally {c.disconnect();}
+    }
     String explain(JSONObject question, Images images) throws Exception {
-        String key=readKey();byte[] body=payload(question,images).toString().getBytes(StandardCharsets.UTF_8);
+        String key=readKey();JSONObject request=payload(question,images);
+        try{return interact(key,request);}catch(ApiError current){if(current.status!=404)throw current;}
+        byte[] body=request.toString().getBytes(StandardCharsets.UTF_8);
         String model=prefs.getString("model","");boolean cached=model.matches("models/[A-Za-z0-9._-]{1,120}");
         if(!cached)model=discoverModel(key);
         try {String result=generate(model,key,body);prefs.edit().putString("model",model).apply();return result;}

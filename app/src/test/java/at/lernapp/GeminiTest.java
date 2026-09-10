@@ -60,4 +60,15 @@ public class GeminiTest {
         models.remove(3);assertEquals("models/gemini-2.5-flash-lite",GeminiClient.selectModel(new JSONObject().put("models",models)));
         models.remove(2);assertThrows(GeminiClient.UserError.class,()->GeminiClient.selectModel(new JSONObject().put("models",models)));
     }
+    @Test public void currentInteractionsPayloadPreservesTextAndImagesAndDoesNotStore() throws Exception {
+        JSONObject request=GeminiClient.interactionPayload(GeminiClient.payload(question(),id -> new byte[]{(byte)255,(byte)216,0}));
+        assertEquals("gemini-flash-latest",request.getString("model"));assertFalse(request.getBoolean("store"));
+        JSONArray input=request.getJSONArray("input");assertEquals("text",input.getJSONObject(0).getString("type"));
+        assertEquals("image",input.getJSONObject(2).getString("type"));assertEquals("image/jpeg",input.getJSONObject(2).getString("mime_type"));
+        assertFalse(request.toString().contains("inlineData"));
+        JSONObject response=new JSONObject().put("status","completed").put("steps",new JSONArray()
+            .put(new JSONObject().put("type","thought").put("content",new JSONArray().put(new JSONObject().put("type","text").put("text","intern"))))
+            .put(new JSONObject().put("type","model_output").put("content",new JSONArray().put(new JSONObject().put("type","text").put("text","Erklärung")))));
+        assertEquals("Erklärung",GeminiClient.interactionExplanation(response));
+    }
 }

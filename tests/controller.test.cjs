@@ -66,3 +66,9 @@ test('AI results are escaped, correlated by request, cached and excluded from ba
   assert.doesNotMatch(t.run('JSON.stringify(state)'),/unsafe/);
   t.run('requestAi(aiQuestionKey(question()))');assert.equal(calls.length,1);
 });
+test('Playful home exposes a learning path with deterministic XP and non-blocking focus',async()=>{
+  const t=await setup();t.run('state.attempts=[];state.sessions=[];rebuildProgress();route="home";render()');
+  let html=t.elements['#app'].innerHTML;assert.match(html,/DEIN LERNPFAD/);assert.match(html,/Adaptive Lernrunde/);assert.match(html,/0<\/strong><small>XP/);assert.match(html,/5\/5<\/strong><small>Fokus/);
+  t.run('startTrain([catalog[0]]);selected=[0,1];answer();next();route="home";render()');html=t.elements['#app'].innerHTML;
+  assert.match(html,/10<\/strong><small>XP/);assert.match(html,/TAGESAUFGABE/);
+});
