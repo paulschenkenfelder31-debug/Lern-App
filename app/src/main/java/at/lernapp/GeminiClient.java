@@ -38,6 +38,11 @@ final class GeminiClient {
         String key=raw==null?"":raw.trim();
         if(key.isEmpty())throw new UserError("Bitte deinen vollständigen Gemini-API-Key einfügen.");
         if(key.length()>8192)throw new UserError("Die Eingabe ist länger als 8192 Zeichen. Bitte nur den API-Key einfügen, keine ganze Datei.");
+        String low=key.toLowerCase(java.util.Locale.ROOT);
+        if(key.startsWith("{")||key.startsWith("[")||low.contains("\"private_key\"")||low.contains("\"service_account\""))
+            throw new UserError("Das sieht nach einer JSON- oder Service-Account-Datei aus. Bitte nur einen API-Key aus Google AI Studio einfügen.");
+        if(low.startsWith("bearer ")||low.startsWith("curl ")||low.contains("x-goog-api-key:"))
+            throw new UserError("Bitte keinen OAuth-Token oder ganzen Befehl einfügen, sondern nur den API-Key aus Google AI Studio.");
         // Accept opaque key formats, including long authorization keys. Only
         // reject characters unsafe for an HTTP header; Google validates the key.
         for(int i=0;i<key.length();i++)if(key.charAt(i)<33||key.charAt(i)>126)
@@ -96,13 +101,11 @@ final class GeminiClient {
             .put("contents",new JSONArray().put(new JSONObject().put("role","user").put("parts",parts)))
             .put("generationConfig",new JSONObject().put("temperature",0.2).put("maxOutputTokens",1200));
     }
-    static JSONObject testPayload() throws Exception {
-        return new JSONObject()
-            .put("systemInstruction",new JSONObject().put("parts",new JSONArray().put(text(
-                "Du bist ein Verbindungstest. Antworte ausschließlich mit dem Wort OK."))))
-            .put("contents",new JSONArray().put(new JSONObject().put("role","user")
-                .put("parts",new JSONArray().put(text("Verbindung prüfen")))))
-            .put("generationConfig",new JSONObject().put("temperature",0).put("maxOutputTokens",16));
+    static JSONObject testInteractionPayload() throws Exception {
+        // Keep this identical to Google's minimal documented curl example.
+        // This separates key/project problems from optional request features.
+        return new JSONObject().put("model","gemini-flash-latest")
+            .put("input","Antworte nur mit OK.").put("store",false);
     }
     static String explanation(JSONObject response) throws Exception {
         JSONArray candidates=response.optJSONArray("candidates");
@@ -120,6 +123,20 @@ final class GeminiClient {
         if(status==404)return "Für diesen Schlüssel wurde kein passendes Gemini-Textmodell gefunden.";
         return "Gemini ist gerade nicht verfügbar. Bitte später erneut versuchen.";
     }
+    static String detailedHttpError(int status,String raw) {
+        String value=raw==null?"":raw.toLowerCase(java.util.Locale.ROOT);
+        if(value.contains("api_key_invalid")||value.contains("api key not valid")||value.contains("invalid api key"))
+            return "Der gespeicherte Wert ist kein gültiger Gemini-API-Key. Erstelle in Google AI Studio über ‚Get API key‘ einen neuen Key und füge nur diesen Key ein – keine JSON-Datei und keinen OAuth-Token.";
+        if(value.contains("service_disabled")||value.contains("api_key_service_blocked")||value.contains("has not been used")||value.contains("not enabled"))
+            return "Die Gemini API ist für das Google-Projekt dieses Keys nicht freigeschaltet. Aktiviere die Generative Language API oder erstelle den Key direkt in Google AI Studio.";
+        if(value.contains("billing")||value.contains("consumer invalid"))
+            return "Das Google-Projekt des Keys ist nicht korrekt für Gemini eingerichtet. Prüfe Projekt und Abrechnung in Google AI Studio bzw. Google Cloud.";
+        if(value.contains("location")&&(value.contains("not supported")||value.contains("unsupported")))
+            return "Gemini ist für den Standort oder das Google-Projekt dieses Keys nicht verfügbar.";
+        if(value.contains("model")&&(value.contains("not found")||value.contains("not supported")||value.contains("not available")))
+            return "Gemini Flash ist für diesen Key nicht verfügbar. Erstelle einen Gemini-API-Key direkt in Google AI Studio.";
+        return httpError(status);
+    }
     static JSONObject interactionPayload(JSONObject legacy) throws Exception {
         JSONArray source=legacy.getJSONArray("contents").getJSONObject(0).getJSONArray("parts"),input=new JSONArray();
         for(int i=0;i<source.length();i++) {
@@ -134,7 +151,7 @@ final class GeminiClient {
         int max=legacy.optJSONObject("generationConfig")==null?1200:
             legacy.getJSONObject("generationConfig").optInt("maxOutputTokens",1200);
         return new JSONObject().put("model","gemini-flash-latest").put("input",input).put("system_instruction",instruction)
-            .put("store",false).put("generation_config",new JSONObject().put("max_output_tokens",max).put("thinking_level","minimal"));
+            .put("store",false).put("generation_config",new JSONObject().put("max_output_tokens",max));
     }
     static String interactionExplanation(JSONObject response) throws Exception {
         if(!"completed".equals(response.optString("status")))throw new UserError("Gemini konnte die Erklärung nicht abschließen. Bitte erneut versuchen.");
@@ -175,10 +192,17 @@ final class GeminiClient {
         c.setInstanceFollowRedirects(false);c.setConnectTimeout(15000);c.setReadTimeout(45000);
         c.setRequestProperty("x-goog-api-key",key);return c;
     }
+    private static String errorFor(HttpURLConnection c,int status) {
+        try(InputStream in=c.getErrorStream()) {
+            if(in==null)return httpError(status);
+            String raw=new String(readBounded(in,200_000),StandardCharsets.UTF_8);
+            return detailedHttpError(status,raw);
+        } catch(Exception ignored) {return httpError(status);}
+    }
     private String discoverModel(String key) throws Exception {
         HttpURLConnection c=connection("models?pageSize=1000",key);
         try {
-            int status=c.getResponseCode();if(status!=200)throw new UserError(httpError(status));
+            int status=c.getResponseCode();if(status!=200)throw new UserError(errorFor(c,status));
             try(InputStream in=c.getInputStream()) {return selectModel(new JSONObject(new String(readBounded(in,1_000_000),StandardCharsets.UTF_8)));}
         } finally {c.disconnect();}
     }
@@ -187,20 +211,23 @@ final class GeminiClient {
         c.setRequestMethod("POST");c.setDoOutput(true);c.setRequestProperty("Content-Type","application/json; charset=utf-8");c.setFixedLengthStreamingMode(body.length);
         try {
             try(OutputStream out=c.getOutputStream()){out.write(body);}
-            int status=c.getResponseCode();if(status!=200)throw new ApiError(status,"Gemini-Fehler bei der Modellanfrage (HTTP "+status+"). "+httpError(status));
+            int status=c.getResponseCode();if(status!=200)throw new ApiError(status,"Gemini-Fehler bei der Modellanfrage (HTTP "+status+"). "+errorFor(c,status));
             try(InputStream in=c.getInputStream()){return explanation(new JSONObject(new String(readBounded(in,1_000_000),StandardCharsets.UTF_8)));}
         } finally {c.disconnect();}
     }
-    private String interact(String key, JSONObject legacy) throws Exception {
-        byte[] body=interactionPayload(legacy).toString().getBytes(StandardCharsets.UTF_8);
+    private String interactBody(String key,JSONObject request) throws Exception {
+        byte[] body=request.toString().getBytes(StandardCharsets.UTF_8);
         HttpURLConnection c=connection("interactions",key);c.setRequestMethod("POST");c.setDoOutput(true);
         c.setRequestProperty("Content-Type","application/json; charset=utf-8");c.setFixedLengthStreamingMode(body.length);
         try {
             try(OutputStream out=c.getOutputStream()){out.write(body);}
             int status=c.getResponseCode();
-            if(status!=200)throw new ApiError(status,"Gemini-Fehler am aktuellen API-Endpunkt (HTTP "+status+"). "+httpError(status));
+            if(status!=200)throw new ApiError(status,"Gemini-Fehler am aktuellen API-Endpunkt (HTTP "+status+"). "+errorFor(c,status));
             try(InputStream in=c.getInputStream()){return interactionExplanation(new JSONObject(new String(readBounded(in,1_000_000),StandardCharsets.UTF_8)));}
         } finally {c.disconnect();}
+    }
+    private String interact(String key, JSONObject legacy) throws Exception {
+        return interactBody(key,interactionPayload(legacy));
     }
     private String request(String key, JSONObject request) throws Exception {
         try{return interact(key,request);}catch(ApiError current){if(current.status!=404)throw current;}
@@ -216,7 +243,7 @@ final class GeminiClient {
         return request(readKey(),payload(question,images));
     }
     String testConnection() throws Exception {
-        String answer=request(readKey(),testPayload());
+        String answer=interactBody(readKey(),testInteractionPayload());
         if(answer.trim().isEmpty())throw new UserError("Gemini hat beim Verbindungstest nicht geantwortet.");
         return "Verbindung erfolgreich. Gemini Flash ist für diesen API-Key verfügbar.";
     }

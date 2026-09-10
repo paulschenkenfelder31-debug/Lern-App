@@ -99,7 +99,7 @@ jobs:
 
           **Fragenquelle:** Die APK enthält keine fremden Fragen oder Bilder. Die direkte Verbindung zu F-Online lässt sich nach Klärung der dort verlangten schriftlichen Nutzungsgenehmigung in der App aktivieren.
 
-          Neu: spielerischere Lernrunden und Abschlusskarten, klarere Navigation sowie ein direkter Gemini-Verbindungstest in den Einstellungen. Der Test zeigt verständlich, ob der eigene Key mit Gemini Flash funktioniert.
+          Neu: vier ruhige, einheitliche Farbthemen in den Einstellungen. Der Gemini-Verbindungstest verwendet nun Googles minimale dokumentierte Anfrage und unterscheidet sicher zwischen ungültigem Key, fehlender API-Freigabe, Projektproblemen und einem nicht verfügbaren Modell.
 
           Die Simulationen sind Übungsprüfungen und keine amtliche Prüfungssoftware.
           NOTES

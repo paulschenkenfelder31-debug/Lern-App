@@ -16,6 +16,9 @@ public class GeminiTest {
         assertEquals("short-opaque-key",GeminiClient.normalizeKey("short-opaque-key"));
         assertThrows(GeminiClient.UserError.class,()->GeminiClient.normalizeKey("key\r\nx-header: value"));
         assertThrows(GeminiClient.UserError.class,()->GeminiClient.normalizeKey("two parts"));
+        assertThrows(GeminiClient.UserError.class,()->GeminiClient.normalizeKey("{\"type\":\"service_account\",\"private_key\":\"secret\"}"));
+        assertThrows(GeminiClient.UserError.class,()->GeminiClient.normalizeKey("Bearer oauth-token"));
+        assertThrows(GeminiClient.UserError.class,()->GeminiClient.normalizeKey("curl -H x-goog-api-key:key"));
         assertThrows(GeminiClient.UserError.class,()->GeminiClient.normalizeKey("   "));
         assertThrows(GeminiClient.UserError.class,()->GeminiClient.normalizeKey(String.join("",java.util.Collections.nCopies(8193,"a"))));
     }
@@ -71,13 +74,21 @@ public class GeminiTest {
             .put(new JSONObject().put("type","model_output").put("content",new JSONArray().put(new JSONObject().put("type","text").put("text","Erklärung")))));
         assertEquals("Erklärung",GeminiClient.interactionExplanation(response));
     }
-    @Test public void connectionTestIsSmallAndContainsNoLearningData() throws Exception {
-        JSONObject legacy=GeminiClient.testPayload();
-        JSONObject request=GeminiClient.interactionPayload(legacy);
-        assertEquals(16,request.getJSONObject("generation_config").getInt("max_output_tokens"));
-        assertEquals(1,request.getJSONArray("input").length());
+    @Test public void connectionTestIsTheMinimalDocumentedRequestAndContainsNoLearningData() throws Exception {
+        JSONObject request=GeminiClient.testInteractionPayload();
+        assertEquals("gemini-flash-latest",request.getString("model"));
+        assertEquals("Antworte nur mit OK.",request.getString("input"));
+        assertFalse(request.has("generation_config"));
         assertFalse(request.toString().contains("Führerschein"));
         assertFalse(request.toString().contains("Antwortschlüssel"));
         assertFalse(request.getBoolean("store"));
+    }
+    @Test public void apiErrorsAreClassifiedWithoutShowingRawServerContent() throws Exception {
+        String invalid=GeminiClient.detailedHttpError(400,"{\"error\":{\"status\":\"INVALID_ARGUMENT\",\"message\":\"API key not valid\"}}");
+        assertTrue(invalid.contains("kein gültiger Gemini-API-Key"));
+        assertFalse(invalid.contains("INVALID_ARGUMENT"));
+        String disabled=GeminiClient.detailedHttpError(403,"SERVICE_DISABLED: API has not been used");
+        assertTrue(disabled.contains("nicht freigeschaltet"));
+        assertTrue(GeminiClient.detailedHttpError(429,"secret raw response").contains("Kontingent"));
     }
 }

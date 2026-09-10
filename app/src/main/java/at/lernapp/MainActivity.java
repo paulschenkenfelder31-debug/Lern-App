@@ -241,7 +241,7 @@ public class MainActivity extends Activity {
         });
         android.app.AlertDialog dialog=new android.app.AlertDialog.Builder(this)
             .setTitle("Gemini einrichten")
-            .setMessage("Bei „Einfach erklären“ werden die Frage, Antworten, Lösung und Bilder an Google Gemini gesendet. Es gilt dein Gemini-Tarif; Anfragen können Kosten verursachen. Dein Lernverlauf wird nicht übertragen. Der Key wird auf diesem Gerät verschlüsselt gespeichert und nicht in Sicherungen exportiert.")
+            .setMessage("Füge nur den API-Key aus Google AI Studio ein – keine JSON-Datei, keinen OAuth-Token und keinen ganzen Befehl. Bei „Einfach erklären“ werden die Frage, Antworten, Lösung und Bilder an Google Gemini gesendet. Es gilt dein Gemini-Tarif; Anfragen können Kosten verursachen. Dein Lernverlauf wird nicht übertragen. Der Key wird auf diesem Gerät verschlüsselt gespeichert und nicht in Sicherungen exportiert.")
             .setView(fields).setNegativeButton("Abbrechen",null).setPositiveButton("Speichern",null).create();
         dialog.setOnShowListener(ignored -> {
             dialog.getWindow().addFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE);

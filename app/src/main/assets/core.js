@@ -62,6 +62,7 @@
     }
     data.settings.goal=Math.max(1,Math.min(1000,Number(data.settings.goal)||30));
     data.settings.dark=!!data.settings.dark;data.settings.auto=!!data.settings.auto;
+    data.settings.theme=['green','blue','purple','orange'].includes(data.settings.theme)?data.settings.theme:'green';
     return {...data,active:null};
   }
 
