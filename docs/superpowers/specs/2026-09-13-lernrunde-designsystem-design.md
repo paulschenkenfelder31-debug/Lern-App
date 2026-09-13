@@ -120,7 +120,7 @@ Mindestwert 4,5 : 1 für diese Paare, in allen vier Themen, hell und dunkel:
 * `--text` auf `--bg` und auf `--surface`
 * `--text-muted` auf `--bg` und auf `--surface`
 * `--on-accent` auf `--accent-strong`
-* `--accent-strong` auf `--surface`
+* `--accent-strong` auf `--surface` und auf `--bg`, weil Textknöpfe direkt auf dem Hintergrund stehen
 * `--ok` auf `--ok-soft`, `--bad` auf `--bad-soft`
 
 ### Maßstäbe
