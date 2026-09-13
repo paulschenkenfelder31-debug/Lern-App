@@ -10,3 +10,4 @@ dist/
 *.p12
 *.pfx
 fahrklar-signing-private/
+.superpowers/
