@@ -35,7 +35,9 @@ Beschlossen am 10. September 2026: **zwei Register in einem Designsystem.**
 * **Motivierend** für Start, Lernpfad und Fortschritt: Lernpfad mit Knoten, Serie, Tagesziel als Ring, warme Flächen. Baut den heutigen Stil aus.
 * **Nüchtern** für Lernrunde und Prüfungssimulation: nichts lenkt ab, die Frage füllt den Bildschirm, der Primärbutton sitzt unten in der Daumenzone.
 
-Gleiche Farben, gleiche Abstände, unterschiedliche Dichte. Farbvariablen und die vier Farbthemen liegen bereits in `:root` in `style.css`.
+Gleiche Farben, gleiche Abstände, unterschiedliche Dichte.
+
+Technisch setzt `render()` am App-Container `data-register="calm"` für die Lernrunde, sonst `playful`. Neue Regeln für Lernrunde und Prüfung gehören unter `#app[data-register="calm"]` – die ID ist nötig, weil spätere Regeln des verspielten Stils sonst bei gleicher Spezifität gewinnen. Farben nur über die Tokens der einzigen `:root`-Definition in `style.css` (`--text`, `--text-muted`, `--accent`, `--accent-strong`, `--on-accent`, `--ok`, `--bad` und weitere); jedes Farbthema setzt nur `--accent`, `--accent-strong` und `--accent-soft`. `tests/contrast.test.cjs` prüft die Kontrastpaare für alle vier Themen in hell und dunkel gegen 4,5 : 1.
 
 Spielmechanik muss wirken oder verschwinden. Die Fokus-Herzen zeigen heute Fehler an und sperren nichts – der Hinweistext räumt das selbst ein. Solche Elemente entweder mit Wirkung versehen oder entfernen.
 
@@ -46,7 +48,7 @@ node --test tests/*.test.cjs
 gradle testDebugUnitTest assembleDebug lintDebug
 ```
 
-Erwartung: 36 von 36 Node-Tests, 24 Android-Testausführungen, Lint ohne Fehler. Ändert sich eine dieser Zahlen, gehört die neue Zahl in denselben Commit dokumentiert.
+Erwartung: 50 von 50 Node-Tests, 24 Android-Testausführungen, Lint ohne Fehler. Ändert sich eine dieser Zahlen, gehört die neue Zahl in denselben Commit dokumentiert.
 
 Für Oberflächenänderungen zusätzlich die Referenzbilder vergleichen:
 
