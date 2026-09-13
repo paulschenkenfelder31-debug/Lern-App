@@ -16,3 +16,10 @@ for(const theme of ['green','blue','purple','orange'])for(const dark of [false,t
   const t={...block(':root'),...(dark?block('body.dark'):{}),...block(`body.${dark?'dark.':''}theme-${theme}`)};
   for(const [fg,bg] of pairs){assert.ok(t[fg]&&t[bg],`Token fehlt: ${fg} oder ${bg}`);const r=ratio(t[fg],t[bg]);assert.ok(r>=4.5,`${fg} auf ${bg}: ${r.toFixed(2)}`);}
 });
+test('Calm register removes block shadows and legacy session cards',()=>{
+  assert.match(css,/#app\[data-register="calm"\] \.card,#app\[data-register="calm"\] button,#app\[data-register="calm"\] \.answer\{box-shadow:none/);
+  assert.match(css,/body\.in-session>header\{display:none\}/);
+  assert.match(css,/\.session-dock\{position:sticky;bottom:0/);
+  assert.doesNotMatch(css,/\.route-session \.card\.good h3::after/);
+  for(const m of css.matchAll(/font-size:(\d+)px/g))if(css.slice(Math.max(0,m.index-400),m.index).includes('.session-'))assert.ok(+m[1]>=12,'Schrift unter 12 px in Session-Regel');
+});
