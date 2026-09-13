@@ -85,3 +85,17 @@ test('Playful home exposes a learning path with deterministic XP and non-blockin
   t.run('startTrain([catalog[0]]);selected=[0,1];answer();next();route="home";render()');html=t.elements['#app'].innerHTML;
   assert.match(html,/10<\/strong><small>XP/);assert.match(html,/TAGESAUFGABE/);
 });
+test('Resolution names missed and wrongly chosen answers by letter',async()=>{
+  const t=await setup();const run=(ans,sel)=>t.run(`resolutionText(${JSON.stringify(ans.map(c=>({correct:c})))},${JSON.stringify(sel)})`);
+  assert.equal(run([true,true,false],[0,2]),'B war richtig, C war falsch.');
+  assert.equal(run([true,true,true,false],[0,3]),'B und C waren richtig, D war falsch.');
+  assert.equal(run([true,true,false],[0]),'B war auch richtig.');
+  assert.equal(run([true,false,false,false],[0,1,2]),'B und C waren falsch.');
+  assert.equal(run([true,false,false,false],[0,3,1]),'B und D waren falsch.');
+  assert.equal(run([true,false],[0]),'');
+  assert.equal(t.run('answerLetters([0,1,2])'),'A, B und C');
+  assert.equal(t.run("answerTag({correct:true},true)"),'Richtig');
+  assert.equal(t.run("answerTag({correct:true},false)"),'Richtig · übersehen');
+  assert.equal(t.run("answerTag({correct:false},true)"),'Falsch gewählt');
+  assert.equal(t.run("answerTag({correct:false},false)"),'');
+});
