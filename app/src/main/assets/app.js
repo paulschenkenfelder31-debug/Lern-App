@@ -91,6 +91,8 @@ function topicPicker(){
   const close=()=>{d.close();d.remove();if(opener?.isConnected)opener.focus();};
   d.querySelector('[data-close]').onclick=close;d.oncancel=e=>{e.preventDefault();close();};
   d.querySelector('#topic-search').oninput=e=>draw(e.target.value.trim());
+  // Nur eine Themen-Gruppe gleichzeitig geöffnet halten: lange Listen bleiben übersichtlich.
+  results.addEventListener('toggle',e=>{if(!e.target.matches('details.topic-group')||!e.target.open)return;results.querySelectorAll('details.topic-group[open]').forEach(group=>{if(group!==e.target)group.open=false;});});
   results.onclick=e=>{const b=e.target.closest('[data-topic]');if(!b)return;topic=b.dataset.topic;close();render();document.querySelector('[data-action="topics"]')?.focus();};
   document.body.append(d);draw();d.showModal();d.querySelector('#topic-search').focus();
 }
