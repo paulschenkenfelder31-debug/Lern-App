@@ -92,3 +92,10 @@ test('Playful home exposes a learning path with deterministic XP and non-blockin
   t.run('startTrain([catalog[0]]);selected=[0,1];answer();next();route="home";render()');html=t.elements['#app'].innerHTML;
   assert.match(html,/10<\/strong><small>XP/);assert.match(html,/TAGESAUFGABE/);
 });
+test('Review plan shows the next appointment and offers due mistakes immediately',async()=>{
+  const t=await setup();
+  let plan=t.run('reviewOverview([catalog[0]])');assert.equal(plan.due.length,0);assert.equal(plan.nextAt,null);assert.equal(plan.nextLabel,'Noch keine Wiederholung geplant');
+  t.run('startTrain([catalog[0]]);selected=[2];answer();state.attempts[0].at=Date.now()-11*60*1000;rebuildProgress();route="learn";render()');
+  const html=t.elements['#app'].innerHTML;assert.match(html,/1 fällig/);assert.match(html,/1 Fragen jetzt wiederholen/);assert.match(html,/Jetzt bereit/);
+  plan=t.run('reviewOverview([catalog[0]])');assert.equal(plan.due.length,1);assert.equal(plan.wrong,1);
+});
