@@ -5,7 +5,7 @@ const vm=require('node:vm');
 const Icons=require('../app/src/main/assets/icons.js');
 const C=require('../app/src/main/assets/core.js');
 function fixture(){const qs=[];for(let n=1;n<=25;n++){for(const sub of [false,true])qs.push({qst_id:n+(sub?100:0),txt_text:'Synthetische Frage '+n,qst_main:sub?0:1,qst_sub:sub?null:n+100,qst_value:sub?2:3,classes:[3],path:['Test'],answers:[{txt_text:'Richtig A',ans_correct:1},{txt_text:'Richtig B',ans_correct:1},{txt_text:'Falsch',ans_correct:0}]});}return qs;}
-async function setup(nativeBridge=null){const elements={};for(const id of ['#app','#nav','#toast','#timer'])elements[id]={innerHTML:'',textContent:'',classList:{add(){},remove(){}},hidden:false};const storage=new Map();let clock=100;
+async function setup(nativeBridge=null){const elements={};for(const id of ['#app','#nav','#toast','#timer'])elements[id]={innerHTML:'',textContent:'',classList:{add(){},remove(){}},dataset:{},hidden:false};const storage=new Map();let clock=100;
 const context=vm.createContext({...(nativeBridge?{Native:nativeBridge}:{}),Core:C,Icons,console,Date,Math,Map,Set,JSON,Number,String,Array,Promise,Error,document:{querySelector:s=>elements[s]||null,querySelectorAll:()=>[],addEventListener(){},body:{classList:{toggle(){}}},hidden:false},window:{scrollTo(){}},performance:{now:()=>clock},localStorage:{getItem:k=>storage.get(k),setItem:(k,v)=>storage.set(k,v)},fetch:async()=>({ok:true,json:async()=>({questions:fixture(),meta:{hash:'test',checkedAt:Date.now()}})}),setInterval(){},setTimeout(){},clearTimeout(){}});
 vm.runInContext(fs.readFileSync('app/src/main/assets/app.js','utf8'),context);await new Promise(resolve=>setImmediate(resolve));return {run:src=>vm.runInContext(src,context),advance:ms=>clock+=ms,elements,storage};}
 test('Every primary route renders with synthetic catalog and empty local history',async()=>{const t=await setup();for(const route of ['home','learn','exam','stats','history','settings']){t.run(`route='${route}';render()`);assert.ok(t.elements['#app'].innerHTML.length>100,route);assert.ok(!t.elements['#app'].innerHTML.includes('NaN'),route);}});
@@ -91,6 +91,48 @@ test('Playful home exposes a learning path with deterministic XP and non-blockin
   let html=t.elements['#app'].innerHTML;assert.match(html,/DEIN LERNPFAD/);assert.match(html,/Adaptive Lernrunde/);assert.match(html,/0<\/strong><small>XP/);assert.match(html,/5\/5<\/strong><small>Fokus/);
   t.run('startTrain([catalog[0]]);selected=[0,1];answer();next();route="home";render()');html=t.elements['#app'].innerHTML;
   assert.match(html,/10<\/strong><small>XP/);assert.match(html,/TAGESAUFGABE/);
+});
+test('Resolution names missed and wrongly chosen answers by letter',async()=>{
+  const t=await setup();const run=(ans,sel)=>t.run(`resolutionText(${JSON.stringify(ans.map(c=>({correct:c})))},${JSON.stringify(sel)})`);
+  assert.equal(run([true,true,false],[0,2]),'B war richtig, C war falsch.');
+  assert.equal(run([true,true,true,false],[0,3]),'B und C waren richtig, D war falsch.');
+  assert.equal(run([true,true,false],[0]),'B war auch richtig.');
+  assert.equal(run([true,false,false,false],[0,1,2]),'B und C waren falsch.');
+  assert.equal(run([true,false,false,false],[0,3,1]),'B und D waren falsch.');
+  assert.equal(run([true,false],[0]),'');
+  assert.equal(t.run('answerLetters([0,1,2])'),'A, B und C');
+  assert.equal(t.run("answerTag({correct:true},true)"),'Richtig');
+  assert.equal(t.run("answerTag({correct:true},false)"),'Richtig · übersehen');
+  assert.equal(t.run("answerTag({correct:false},true)"),'Falsch gewählt');
+  assert.equal(t.run("answerTag({correct:false},false)"),'');
+});
+test('Session renders a slim bar, lettered answers and a docked primary action',async()=>{
+  const t=await setup();t.run('startTrain([catalog[0]])');let html=t.elements['#app'].innerHTML;
+  assert.equal(t.elements['#app'].dataset.register,'calm');
+  assert.match(html,/class="session-bar"/);assert.match(html,/aria-label="Einheit beenden"/);
+  assert.match(html,/data-action="pause"[^>]*>.*<span id="timer">/s);
+  assert.match(html,/<span class="box">A<\/span>/);assert.match(html,/<span class="box">C<\/span>/);
+  assert.match(html,/class="session-dock"/);assert.match(html,/Antwort auswählen/);
+  assert.doesNotMatch(html,/Pause machen/);assert.doesNotMatch(html,/#\d+/);
+  t.run('selected=[0];render()');assert.match(t.elements['#app'].innerHTML,/Antwort prüfen/);
+  t.run('answer()');html=t.elements['#app'].innerHTML;
+  assert.match(html,/Noch nicht ganz\./);assert.match(html,/B war auch richtig\./);assert.match(html,/Richtig · übersehen/);
+  assert.doesNotMatch(html,/Alle richtigen Antworten/);
+  assert.match(html,/<details class="ai-row">/);
+  t.run("route='home';render()");assert.equal(t.elements['#app'].dataset.register,'playful');
+});
+test('Correct answers show XP, wrong choices are named, exams keep a countdown without pause',async()=>{
+  const t=await setup();t.run('startTrain([catalog[0],catalog[1]]);selected=[0,1];answer()');let html=t.elements['#app'].innerHTML;
+  assert.match(html,/Richtig\./);assert.match(html,/class="xp">\+10 XP/);assert.doesNotMatch(html,/Falsch gewählt/);
+  t.run('next();selected=[0,2];answer()');html=t.elements['#app'].innerHTML;
+  assert.match(html,/B war richtig, C war falsch\./);assert.match(html,/Falsch gewählt/);
+  t.run("finish('aborted');state.settings.modules=[3];startExam()");html=t.elements['#app'].innerHTML;
+  assert.doesNotMatch(html,/data-action="pause"/);assert.match(html,/<span id="timer">/);
+  assert.match(html,/Ergebnisse und Lösungen erscheinen nach dem Abschluss/);assert.doesNotMatch(html,/data-ai-panel/);
+});
+test('Pause screen explains the stopped answer time',async()=>{
+  const t=await setup();t.run('startTrain([catalog[0]]);actions.pause()');
+  assert.match(t.elements['#app'].innerHTML,/zählt nur, solange du eine Frage bearbeitest/);
 });
 test('Review plan shows the next appointment and offers due mistakes immediately',async()=>{
   const t=await setup();
