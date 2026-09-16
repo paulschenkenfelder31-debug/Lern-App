@@ -18,6 +18,13 @@ test('Wrong main skips follow-up, timeout completes remaining questions without 
 test('Paused time is excluded from active answer speed',async()=>{const t=await setup();t.run('startTrain([catalog[0]])');t.advance(3000);t.run('actions.pause()');t.advance(90000);t.run('actions.continue()');t.advance(2000);t.run('selected=[0,1];answer()');assert.equal(t.run('state.attempts[0].ms'),5000);});
 test('Generated backup passes validation, malformed nested history is rejected',async()=>{const t=await setup();t.run('startTrain([catalog[0]]);selected=[0,1];answer();next()');const data=JSON.parse(t.run('JSON.stringify(state)'));assert.equal(C.validateBackup(data).sessions.length,1);data.sessions[0].attempts[0].answers[0].text={bad:true};assert.throws(()=>C.validateBackup(data));});
 test('Empty catalog routes lead to download instead of disabled learning controls',async()=>{const t=await setup();t.run('catalog=[]');for(const route of ['home','learn','exam']){t.run(`route='${route}';render()`);const html=t.elements['#app'].innerHTML;assert.match(html,/Fragen herunterladen/);assert.doesNotMatch(html,/data-action="(?:quick|start-exam|start-filtered)"/);assert.match(html,/<svg/);}});
+test('First start guides through licence selection, download and learning without empty navigation',async()=>{
+  const t=await setup();t.run('catalog=[];route="home";render()');const html=t.elements['#app'].innerHTML;
+  assert.match(html,/SCHRITT 1 VON 3/);assert.match(html,/SCHRITT 2 VON 3/);assert.match(html,/SCHRITT 3 VON 3/);
+  assert.match(html,/data-module="1"[^>]*class="license-card selected"/);
+  assert.match(html,/data-module="3"/);assert.match(html,/Fragen herunterladen/);assert.equal(t.elements['#nav'].hidden,true);
+  t.run('catalog=Core.normalize('+JSON.stringify(fixture())+');render()');assert.equal(t.elements['#nav'].hidden,false);
+});
 test('Download progress disables retries; errors allow retry without losing saved questions',async()=>{const t=await setup();const count=t.run('catalog.length');await t.run("window.nativeEvent('sync','Fragenkatalog wird geladen …')");assert.match(t.elements['#app'].innerHTML,/data-action="sync" disabled/);await t.run("window.nativeEvent('error','Verbindung unterbrochen')");assert.match(t.elements['#app'].innerHTML,/Erneut versuchen/);assert.match(t.elements['#app'].innerHTML,/gespeicherten Fragen bleiben nutzbar/);assert.equal(t.run('catalog.length'),count);assert.equal(t.run('transferBusy'),false);});
 test('Successful first download unlocks learning and clears the loading state',async()=>{const t=await setup();t.run("catalog=[];downloadState={phase:'loading',message:''};transferBusy=true;render()");await t.run("window.nativeEvent('updated','Fragenkatalog gespeichert')");assert.match(t.elements['#app'].innerHTML,/Lernrunde starten/);assert.equal(t.run('transferBusy'),false);assert.equal(t.run('downloadState.phase'),'idle');});
 
@@ -126,4 +133,11 @@ test('Correct answers show XP, wrong choices are named, exams keep a countdown w
 test('Pause screen explains the stopped answer time',async()=>{
   const t=await setup();t.run('startTrain([catalog[0]]);actions.pause()');
   assert.match(t.elements['#app'].innerHTML,/zählt nur, solange du eine Frage bearbeitest/);
+});
+test('Review plan shows the next appointment and offers due mistakes immediately',async()=>{
+  const t=await setup();
+  let plan=t.run('reviewOverview([catalog[0]])');assert.equal(plan.due.length,0);assert.equal(plan.nextAt,null);assert.equal(plan.nextLabel,'Noch keine Wiederholung geplant');
+  t.run('startTrain([catalog[0]]);selected=[2];answer();state.attempts[0].at=Date.now()-11*60*1000;rebuildProgress();route="learn";render()');
+  const html=t.elements['#app'].innerHTML;assert.match(html,/1 fällig/);assert.match(html,/1 Fragen jetzt wiederholen/);assert.match(html,/Jetzt bereit/);
+  plan=t.run('reviewOverview([catalog[0]])');assert.equal(plan.due.length,1);assert.equal(plan.wrong,1);
 });
