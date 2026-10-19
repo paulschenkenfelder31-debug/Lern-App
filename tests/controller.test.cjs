@@ -10,7 +10,7 @@ const context=vm.createContext({...(nativeBridge?{Native:nativeBridge}:{}),Core:
 vm.runInContext(fs.readFileSync('app/src/main/assets/app.js','utf8'),context);await new Promise(resolve=>setImmediate(resolve));return {run:src=>vm.runInContext(src,context),advance:ms=>clock+=ms,elements,storage};}
 test('Every primary route renders with synthetic catalog and empty local history',async()=>{const t=await setup();for(const route of ['home','learn','exam','stats','history','settings']){t.run(`route='${route}';render()`);assert.ok(t.elements['#app'].innerHTML.length>100,route);assert.ok(!t.elements['#app'].innerHTML.includes('NaN'),route);}});
 test('Settings offers four persistent single-accent color themes',async()=>{const t=await setup();t.run("route='settings';render()");let html=t.elements['#app'].innerHTML;for(const name of ['green','blue','purple','orange'])assert.match(html,new RegExp('data-theme="'+name+'"'));t.run("state.settings.theme='blue';save();render()");html=t.elements['#app'].innerHTML;assert.match(html,/data-theme="blue" class="theme-option selected"/);assert.equal(JSON.parse(t.storage.get('fahrklar')).settings.theme,'blue');});
-test('Settings groups services and offers readable comfort controls',async()=>{const t=await setup();t.run("route='settings';render()");const html=t.elements['#app'].innerHTML;assert.match(html,/Alles an einem Ort/);assert.match(html,/Größere Schrift/);assert.match(html,/Animationen reduzieren/);assert.match(html,/Bildschirm beim Lernen aktiv halten/);assert.match(html,/data-session-size="10"/);assert.match(html,/data-session-size="30"/);});
+test('Settings groups services and offers readable comfort controls',async()=>{const t=await setup();t.run("route='settings';render()");const html=t.elements['#app'].innerHTML;assert.match(html,/Alles an einem Ort/);assert.match(html,/Größere Schrift/);assert.match(html,/Animationen reduzieren/);assert.match(html,/Bildschirm beim Lernen aktiv halten/);assert.match(html,/data-session-size="10"/);assert.match(html,/data-session-size="5"/);});
 test('Configured round length controls adaptive and filtered training',async()=>{const t=await setup();t.run('state.settings.sessionSize=10;actions.quick()');assert.equal(t.run('state.active.questions.length'),10);t.run("finish('aborted');route='learn';filter='all';actions['start-filtered']()");assert.equal(t.run('state.active.questions.length'),10);});
 test('Training saves exactly one answer, feedback does not add time, review persists',async()=>{const t=await setup();t.run('startTrain([catalog[0]])');t.advance(10000);t.run('selected=[0,1];answer()');assert.equal(t.run('state.attempts.length'),1);assert.equal(t.run('feedback'),true);t.advance(60000);t.run('answer();next()');assert.equal(t.run('state.attempts.length'),1);assert.equal(t.run('state.attempts[0].ms'),10000);assert.equal(t.run('state.sessions[0].status'),'finished');assert.equal(t.run('state.active'),null);assert.equal(t.run('route'),'review');assert.ok(t.storage.get('fahrklar').includes('"schema":1'));});
 test('Full simulation grades all 20 main/follow-up pairs at 100 points',async()=>{const t=await setup();t.run('state.settings.modules=[3];startExam()');for(let i=0;i<40;i++){t.advance(5000);t.run('selected=[0,1];answer()');}assert.equal(t.run('state.active'),null);assert.equal(t.run('state.sessions[0].modules[0].earned'),100);assert.equal(t.run('state.sessions[0].modules[0].max'),100);assert.equal(t.run('state.attempts.length'),40);assert.ok(t.elements['#app'].innerHTML.includes('100 / 100'));});
@@ -26,7 +26,7 @@ test('First start guides through licence selection, download and learning withou
   t.run('catalog=Core.normalize('+JSON.stringify(fixture())+');render()');assert.equal(t.elements['#nav'].hidden,false);
 });
 test('Download progress disables retries; errors allow retry without losing saved questions',async()=>{const t=await setup();const count=t.run('catalog.length');await t.run("window.nativeEvent('sync','Fragenkatalog wird geladen …')");assert.match(t.elements['#app'].innerHTML,/data-action="sync" disabled/);await t.run("window.nativeEvent('error','Verbindung unterbrochen')");assert.match(t.elements['#app'].innerHTML,/Erneut versuchen/);assert.match(t.elements['#app'].innerHTML,/gespeicherten Fragen bleiben nutzbar/);assert.equal(t.run('catalog.length'),count);assert.equal(t.run('transferBusy'),false);});
-test('Successful first download unlocks learning and clears the loading state',async()=>{const t=await setup();t.run("catalog=[];downloadState={phase:'loading',message:''};transferBusy=true;render()");await t.run("window.nativeEvent('updated','Fragenkatalog gespeichert')");assert.match(t.elements['#app'].innerHTML,/Lernrunde starten/);assert.equal(t.run('transferBusy'),false);assert.equal(t.run('downloadState.phase'),'idle');});
+test('Successful first download unlocks learning and clears the loading state',async()=>{const t=await setup();t.run("catalog=[];downloadState={phase:'loading',message:''};transferBusy=true;render()");await t.run("window.nativeEvent('updated','Fragenkatalog gespeichert')");assert.match(t.elements['#app'].innerHTML,/Etappe starten/);assert.equal(t.run('transferBusy'),false);assert.equal(t.run('downloadState.phase'),'idle');});
 
 test('Learning and statistics use topic picker and button filters rather than native dropdowns',async()=>{
   const t=await setup();
@@ -86,16 +86,33 @@ test('Gemini connection test is explicit and reports success or an escaped API e
   await t.run("window.nativeEvent('ai-test','Verbindung erfolgreich.')");
   assert.match(t.elements['#app'].innerHTML,/Verbindung erfolgreich/);
 });
-test('Playful home exposes a learning path with deterministic XP and non-blocking focus',async()=>{
-  const t=await setup();t.run('state.attempts=[];state.sessions=[];rebuildProgress();route="home";render()');
-  let html=t.elements['#app'].innerHTML;assert.match(html,/DEIN LERNPFAD/);assert.match(html,/Adaptive Lernrunde/);assert.match(html,/0<\/strong><small>XP/);assert.match(html,/5\/5<\/strong><small>Fokus/);
-  t.run('startTrain([catalog[0]]);selected=[0,1];answer();next();route="home";render()');html=t.elements['#app'].innerHTML;
-  assert.match(html,/10<\/strong><small>XP/);assert.match(html,/TAGESAUFGABE/);
+test('Daily home provides a finite recommendation and removes mistake penalties',async()=>{
+ const t=await setup();t.run('route="home";render()');let html=t.elements['#app'].innerHTML;
+ assert.match(html,/Deine heutige Etappe/);assert.match(html,/Etappe starten/);assert.match(html,/Stabil gelernt/);assert.doesNotMatch(html,/Fokus|Herzen/);
+ t.run('startTrain([catalog[0]]);selected=[0,1];answer();next();route="home";render()');html=t.elements['#app'].innerHTML;assert.equal(t.run('C.learningXp(state.attempts)'),10);
 });
 test('Review plan shows the next appointment and offers due mistakes immediately',async()=>{
   const t=await setup();
   let plan=t.run('reviewOverview([catalog[0]])');assert.equal(plan.due.length,0);assert.equal(plan.nextAt,null);assert.equal(plan.nextLabel,'Noch keine Wiederholung geplant');
-  t.run('startTrain([catalog[0]]);selected=[2];answer();state.attempts[0].at=Date.now()-11*60*1000;rebuildProgress();route="learn";render()');
+  t.run('startTrain([catalog[0]]);selected=[2];answer();state.attempts[0].at=Date.now()-25*60*60*1000;rebuildProgress();route="learn";render()');
   const html=t.elements['#app'].innerHTML;assert.match(html,/1 fällig/);assert.match(html,/1 Fragen jetzt wiederholen/);assert.match(html,/Jetzt bereit/);
   plan=t.run('reviewOverview([catalog[0]])');assert.equal(plan.due.length,1);assert.equal(plan.wrong,1);
+});
+
+test('A short round defers a wrong answer instead of immediately repeating it',async()=>{
+ const t=await setup();t.run('startTrain([catalog[0]]);selected=[2];answer()');assert.equal(t.run('state.active.questions.length'),1);assert.equal(t.run('progress(catalog[0]).state'),'learning');assert.ok(t.run('progress(catalog[0]).nextReview-state.attempts[0].at')>=86400000);t.run('next()');assert.equal(t.run('state.active'),null);
+});
+test('Completed exams update learning only after finish; aborted exams do not',async()=>{
+ const t=await setup();t.run('state.settings.modules=[3];startExam()');const id=t.run('question().id');t.run('selected=[0,1];answer()');assert.equal(t.run(`C.progress(catalog.find(q=>q.id===${id}),state.attempts).seen`),false);t.run("finish('finished')");assert.equal(t.run(`C.progress(catalog.find(q=>q.id===${id}),state.attempts).seen`),true);assert.equal(t.run('state.attempts[0].examStatus'),'finished');
+ const u=await setup();u.run('state.settings.modules=[3];startExam();selected=[2];answer()');u.run("finish('aborted')");assert.equal(u.run('C.progress(catalog.find(q=>q.id===state.attempts[0].id),state.attempts).seen'),false);
+});
+test('Optional guessed reporting persists without changing grading or snapshots',async()=>{
+ const t=await setup();t.run('startTrain([catalog[0]]);selected=[0,1];answer();confidence(true)');assert.equal(t.run('state.attempts[0].correct'),true);assert.equal(t.run('state.attempts[0].guessed'),true);assert.equal(t.run('state.active.attempts[0].guessed'),true);assert.equal(t.run('progress(catalog[0]).state'),'learning');assert.equal(t.run('C.learningXp(state.attempts)'),0);assert.deepEqual(JSON.parse(t.run('JSON.stringify(state.attempts[0].selected)')),[0,1]);
+});
+test('Viewing help before a new attempt is recorded as assistance, after-answer feedback is not retroactive',async()=>{
+ const t=await setup();t.run('markHelpViewed(aiQuestionKey(catalog[0]));startTrain([catalog[0]]);selected=[0,1];answer()');assert.equal(t.run('state.attempts[0].assisted'),true);assert.equal(t.run('progress(catalog[0]).lastIndependent'),null);
+ const u=await setup();u.run('startTrain([catalog[0]]);selected=[0,1];answer()');assert.equal(u.run('state.attempts[0].assisted'),false);assert.equal(u.run('progress(catalog[0]).independentDates.length'),1);
+});
+test('An incoming cloud snapshot preserves answers submitted locally while sync was in flight',async()=>{
+ const t=await setup();t.run('startTrain([catalog[0]]);const oldSync=JSON.stringify(state);selected=[0,1];answer();window.cloudEvent("synced",JSON.stringify({state:JSON.parse(oldSync)}))');assert.equal(t.run('state.active.attempts.length'),1);assert.equal(t.run('state.attempts.length'),1);assert.equal(t.run('state.active.feedback'),true);assert.equal(t.run('progress(catalog[0]).seen'),true);
 });

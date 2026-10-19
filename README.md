@@ -14,13 +14,13 @@ Jeder Push nach `main` führt Logiktests, Android-Build und Lint aus und stellt 
 
 ## Funktionen
 
-- Deutsche Oberfläche mit vier Farbthemen, hellem/dunklem Design, größerer Schrift, reduzierbaren Animationen, Tagesziel und lokaler Lernserie.
+- Deutsche Oberfläche mit neutralem Standard und vier Farbthemen, hellem/dunklem Design, größerer Schrift, reduzierbaren Animationen, Tagesziel und lokaler Lernserie.
 - Lernrunden, Suche, Themenfilter, neue Fragen, zuletzt falsche Fragen und Merkliste.
-- Kurze, normale oder intensive Lernrunden mit 10, 20 oder 30 Fragen. Optional bleiben Bildschirm und Fokus während einer Einheit aktiv; richtig/falsch kann haptisch bestätigt werden.
+- Endliche Lernrunden mit 5, 10 oder 20 Fragen und nachvollziehbarem Tagesplan. Optional bleiben Bildschirm und Fokus während einer Einheit aktiv; richtig/falsch kann haptisch bestätigt werden.
 - Multiple Choice mit vollständiger Antwortauswertung und Bildunterstützung.
 - Übungssimulationen pro gewähltem Modul: 20 zufällige Hauptfragen, verknüpfte Zusatzfragen nur nach richtiger Hauptfrage, 30 Minuten pro Modul, 80 % der möglichen Punkte als Übungsziel. Keine amtlich zertifizierte Simulation; die genaue amtliche Themenverteilung und Sonderregeln von AM/Fahrlehrer sind nicht nachgebildet.
 - Alle Antworten und Simulationen mit Verlauf und Lösungssnapshots der damaligen Text-/Antwortversion. Historische Bilder werden über ihre Quell-ID referenziert und können sich beim Anbieter ändern.
-- Trefferquote, aktive Fragen pro Minute, Lernzeit, Mittelwert/Median/P90 der Antwortzeit, Erstversuchsquote, Katalogabdeckung, Beherrschung nach drei richtigen Antworten in Folge, Tagesverlauf, schwache Themen, Prüfungserfolgsquote, Zeitraum- und Modulfilter.
+- Trefferquote, aktive Fragen pro Minute, Lernzeit, Mittelwert/Median/P90 der Antwortzeit, Erstversuchsquote, Katalogabdeckung, Stabilität nach unabhängigen Wiederholungen über mehrere Tage, Tagesverlauf, schwache Themen, Prüfungserfolgsquote, Zeitraum- und Modulfilter.
 - Optionales, per E-Mail bestätigtes Firebase-Konto synchronisiert abgeschlossene Lernrunden, Prüfungen, Einstellungen und Merkliste zwischen Web und Android. Ohne Anmeldung bleibt alles lokal nutzbar. Keine Werbung oder Analyse-Tracker.
 
 ## Fragenquelle und Rechte
@@ -92,17 +92,15 @@ Der Key wird in einem nativen Passwortdialog eingegeben und mit AES-GCM verschl�
 
 Primär verwendet die App die aktuelle `interactions`-Schnittstelle mit dem Alias `gemini-flash-latest`, wie in Googles Dokumentation für neue Auth Keys gezeigt. Nur wenn dieser Endpunkt einen 404 meldet, fragt sie über `models.list` die verfügbaren Modelle ab und nutzt ein geeignetes Flash-Textmodell mit `generateContent`. Das gewählte Rückfallmodell wird lokal gespeichert und bei einem späteren 404 neu ermittelt. Die Authentifizierung erfolgt über `x-goog-api-key`. Erklärungen werden für bis zu 100 Fragenversionen nur im Arbeitsspeicher zwischengespeichert, nicht exportiert. Keine automatischen kostenpflichtigen Wiederholungsversuche. Kontingent-, Zugriffs- und Netzwerkfehler nennen nun Endpunkt und HTTP-Status, ohne Key oder rohe Serverantwort anzuzeigen.
 
-## Spielerischer Lernpfad
+## Ruhiger Lernpfad und adaptives Lernen
 
-Die Übersicht zeigt einen vertikalen Fahrklar-Lernpfad mit adaptiver Lernrunde, fälligen Wiederholungen, Prüfungssimulation und Meisterungsziel. Vollständig richtige Antworten bringen 10 XP, gemeisterte Fragen 20 XP und bestandene Übungssimulationen 100 XP. Je 500 XP steigt das lokale Level. Tagesaufgabe, Lernserie und Fokus-Anzeige machen Fortschritt schneller sichtbar. Fokus sinkt bei heutigen Fehlern, sperrt aber keine Übung und wird täglich neu berechnet. Alle Werte entstehen lokal aus dem vorhandenen Verlauf; es gibt kein Konto, keine Rangliste und keine Übertragung dieser Werte.
+Die gemeinsame Android-/Web-Oberfläche verwendet ein neutrales Design mit Hell-/Dunkelmodus, großen Antwortzeilen und einer klaren täglichen Etappe. Auf Mobilgeräten stehen Pfad, Üben, Prüfung, Fortschritt und Verlauf in der unteren Navigation; am Desktop gibt es eine einklappbare Seitenleiste. Aktive Einheiten bleiben fokussiert. Bestehende Farbthemen, größere Schrift, reduzierte Bewegung, Offlinebetrieb, Konto und Gemini bleiben nutzbar.
 
-Unter **Einstellungen → Farbthema** stehen Waldgrün, Klarblau, Violett und Orange zur Auswahl. Jedes Thema verwendet für Navigation, Lernpfad, Levelkarte, Fortschrittsbalken und Ergebnisanzeige nur Abstufungen seiner Hauptfarbe. Gold bleibt auf Belohnungen und Tagesaufgaben beschränkt. Die Auswahl wird lokal gespeichert und funktioniert zusammen mit dem hellen und dunklen Design.
+Der Lernplan wird aus versionierten Antworten berechnet. Die erste unabhängige richtige Antwort plant eine Wiederholung nach einem Tag; erfolgreiche fällige Abrufe erhöhen das Intervall auf 3, 7, 14 und 30 Tage. Erst drei unabhängige verzögerte Wiederholungen an unterschiedlichen Tagen gelten als stabil gelernt. Frühe Wiederholungen, Hilfe und Raten können diesen Nachweis nicht erzeugen. Fehler werden morgen erneut eingeplant; ein zusätzlicher Versuch innerhalb derselben Runde folgt höchstens einmal und nur nach drei anderen Fragen. Fokus-Herzen und Fehlerabzüge entfallen.
 
-Die Einstellungen sind in **Persönlich**, **Dienste** sowie **Daten & Info** gegliedert. Selten benötigte Bereiche wie Offline-Bilder, Sicherung, Quellenhinweise und Lizenzen lassen sich platzsparend aufklappen. Seitenwechsel, Antwortauswahl und Fortschrittsbalken verwenden kurze Übergänge; sowohl die Systemeinstellung für reduzierte Bewegung als auch der eigene Schalter deaktivieren sie.
+Der Tagesplan kombiniert fällige, neue, schwierige und ältere Fragen. Lernpunkte bleiben vom Lernstand getrennt und lassen sich durch mehrfaches Wiederholen derselben Frage am selben Tag nicht erhöhen. Simulationen behalten ihre eigene Auswahl, Zeitlimits und Punktwertung. Neue Prüfungsantworten beeinflussen den Lernplan erst nach einem abgeschlossenen Durchlauf.
 
-Die Tests prüfen Request-Felder, Bildzuordnung, Antwortschlüssel, unvollständige/abgelehnte Antworten, Prüfungssperre, Zwischenspeicherung und HTML-Escaping mit synthetischen Daten. Eine echte Gemini-Anfrage mit dem persönlichen Key und die hardwaregestützte Schlüsselspeicherung müssen auf dem Gerät geprüft werden.
-
-Referenzen: [Gemini Interactions API](https://ai.google.dev/api/interactions-api), [Gemini API-Keys](https://ai.google.dev/gemini-api/docs/api-key), [Android Keystore](https://developer.android.com/privacy-and-security/keystore).
+Vorhandene Historien, Lösungen, Bookmarks und Konten bleiben erhalten. Alte Antworten werden konservativ übernommen, ohne Hilfenutzung oder unabhängigen Abruf nachträglich zu erfinden. Gespeicherte Rundenlänge 30 wird für neue Runden auf 20 abgebildet. Details, Schwellenwerte, Migration, Cloud-Zusammenführung und Testbefehle stehen in [`docs/learning.md`](docs/learning.md). Die Screenshots unter `docs/screenshots/` zeigen ausschließlich synthetische Testinhalte.
 
 ## Konto und Synchronisierung
 
