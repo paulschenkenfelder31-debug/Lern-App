@@ -92,21 +92,20 @@ async function sync(localState){
     const uid=await ensureLocalId(),prefix='users/'+uid,local=pendingState,meta=read(metaKey,{}),first=meta.uid!==uid;
     const [remoteSettings,remoteBookmarks,remoteSessions]=await Promise.all([getDoc(prefix+'/settings/current'),getDoc(prefix+'/bookmarks/current'),listSessions()]);
     const settingsChanged=!first&&meta.settings!==JSON.stringify(local.settings),bookmarksChanged=!first&&meta.bookmarks!==JSON.stringify(local.bookmarks||[]);
+    const helpShown={...local.helpShown};for(const [key,at] of Object.entries(remoteSettings?._helpShown||{}))if(Number.isFinite(at)&&at>=Date.now()-86400000)helpShown[key]=Math.max(helpShown[key]||0,at);
     let settings=clone(local.settings),bookmarks=[...new Set(local.bookmarks||[])];
-    if(remoteSettings&&!settingsChanged)settings={...settings,...remoteSettings};
+    if(remoteSettings&&!settingsChanged){settings={...settings,...remoteSettings};delete settings._helpShown;}
     if(remoteBookmarks&&!bookmarksChanged)bookmarks=first?[...new Set([...bookmarks,...remoteBookmarks])] : remoteBookmarks;
-    const merged=new Map((local.sessions||[]).map(s=>[s.id,clone(s)]));
-    for(const remote of remoteSessions)if(!merged.has(remote.id)||(remote.ended||0)>(merged.get(remote.id).ended||0))merged.set(remote.id,remote);
-    const sessions=[...merged.values()].sort((a,b)=>a.started-b.started),remoteIds=new Set(remoteSessions.map(s=>s.id));
+    const sessions=root.Core.mergeSessions(local.sessions||[],remoteSessions),remoteIds=new Map(remoteSessions.map(s=>[s.id,JSON.stringify(s)]));
     const writes=[];
-    if(!remoteSettings||settingsChanged)writes.push(putDoc(prefix+'/settings/current',settings));
+    if(!remoteSettings||settingsChanged||JSON.stringify(helpShown)!==JSON.stringify(remoteSettings._helpShown||{}))writes.push(putDoc(prefix+'/settings/current',{...settings,_helpShown:helpShown}));
     if(!remoteBookmarks||bookmarksChanged||first)writes.push(putDoc(prefix+'/bookmarks/current',bookmarks));
-    for(const session of sessions)if(!remoteIds.has(session.id))writes.push(putDoc(prefix+'/sessions/'+docId(session.id),session));
+    for(const session of sessions)if(remoteIds.get(session.id)!==JSON.stringify(session))writes.push(putDoc(prefix+'/sessions/'+docId(session.id),session));
     for(let i=0;i<writes.length;i+=8)await Promise.all(writes.slice(i,i+8));
     const completed=new Set(sessions.map(s=>s.id)),attempts=sessions.flatMap(s=>s.attempts||[]);
     for(const attempt of local.attempts||[])if(!completed.has(attempt.sessionId))attempts.push(attempt);
     write(metaKey,{uid,settings:JSON.stringify(settings),bookmarks:JSON.stringify(bookmarks)});
-    emit('synced',{state:{...local,settings,bookmarks,sessions,attempts},count:sessions.length});
+    emit('synced',{state:{...local,settings,bookmarks,sessions,helpShown,attempts:root.Core.mergeAttempts(attempts)},count:sessions.length});
   }catch(error){emit('error',{message:errorMessage(error)});}finally{busy=false;}
 }
 async function deleteAccount(){
